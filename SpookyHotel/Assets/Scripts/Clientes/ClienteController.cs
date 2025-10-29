@@ -6,8 +6,8 @@ using UnityEngine;
 public class ClienteController : MonoBehaviour
 {
     public ClientesData_SO clientes;
-    public Transform puntoOrigen;
-    public Transform puntoFinal;
+   [HideInInspector] public Transform puntoOrigen;
+    [HideInInspector]public Transform puntoFinal;
 
     [HideInInspector]public bool estaSaliendo = false;
     [HideInInspector]public bool estaLlegando = true;
@@ -16,6 +16,9 @@ public class ClienteController : MonoBehaviour
     void Start()
     {
         transform.position = puntoOrigen.position;
+
+        puntoFinal = GameObject.Find("PuntoFinal").transform;
+        puntoOrigen = GameObject.Find("PuntoOrigen").transform;
     }
 
     // Update is called once per frame
