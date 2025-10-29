@@ -16,7 +16,7 @@ public class ClienteManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
+        InvocarCliente();
     }
 
     // Update is called once per frame
