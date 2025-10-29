@@ -8,6 +8,7 @@ public class ClientesData_SO : ScriptableObject
     public int numeroNoches;
     public int id;
     public int velocidadMovimiento;
+    public string[] dialogosIniciales;
     
     public enum Raza
     {
