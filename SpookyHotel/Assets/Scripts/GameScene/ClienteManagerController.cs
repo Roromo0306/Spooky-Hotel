@@ -85,13 +85,17 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     private void HandleClienteReached()
     {
-        // Cuando llegue, mostramos los diálogos del SO (DialogController se encarga de input)
         if (_activeCliente == null || _activeCliente.clienteData == null) return;
-        dialogController.ShowDialog(_activeCliente.clienteData.dialogos);
 
-        // Subscribir eventos del dialogController
+        // Suscribir primero a los eventos del dialogController (para no perder el OnTypingStarted)
         dialogController.OnLineAdvance += HandleDialogLineAdvance;
         dialogController.OnDialogFinished += HandleDialogFinishedByEnter;
+        dialogController.OnTypingStarted += HandleTypingStarted;
+        dialogController.OnTypingEnded += HandleTypingEnded;
+
+        // Ahora mostrar el diálogo (esto arrancará la primera línea y disparará OnTypingStarted,
+        // que ya está suscrito)
+        dialogController.ShowDialog(_activeCliente.clienteData.dialogos, _activeCliente.clienteData.nombre);
     }
 
     private void HandleDialogLineAdvance(int newLineIndex)
@@ -102,19 +106,38 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     private void HandleDialogFinishedByEnter()
     {
+        // Desuscribir handlers principales
         dialogController.OnLineAdvance -= HandleDialogLineAdvance;
         dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
 
+        // Desuscribir handlers de typing
+        dialogController.OnTypingStarted -= HandleTypingStarted;
+        dialogController.OnTypingEnded -= HandleTypingEnded;
+
         if (_activeCliente != null)
         {
+            // Llamamos a CancelProgressAndLeave para detener progreso/shake y hacer salir al cliente
             _activeCliente.CancelProgressAndLeave(exitPoint, () =>
             {
-                // spawn next when leave complete
                 SpawnNextClienteIfAny();
             });
         }
     }
+    private void HandleTypingStarted()
+    {
+        if (_activeCliente != null)
+        {
+            _activeCliente.StartSpeakingPulse();
+        }
+    }
 
+    private void HandleTypingEnded()
+    {
+        if (_activeCliente != null)
+        {
+            _activeCliente.StopSpeakingPulse();
+        }
+    }
     private void HandleClienteLeft()
     {
         // si prefieres, también puedes usar este evento para spawnear el siguiente.

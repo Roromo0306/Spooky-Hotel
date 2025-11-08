@@ -1,9 +1,14 @@
 using System;
 using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 
+/// <summary>
+/// Control del cliente (View/Behaviour).
+/// Soporta: Initialize(ClienteSO), MoveTo(target), llegada->StartProgress(),
+/// CancelProgressAndLeave(exitPoint), Leave(exitPoint).
+/// Además StartSpeakingPulse/StopSpeakingPulse para el pulso de escala mientras se escribe.
+/// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class ClienteController : MonoBehaviour
 {
@@ -18,53 +23,79 @@ public class ClienteController : MonoBehaviour
     public float moveSpeed = 2f;
 
     [Header("Progreso")]
-    public ProgressBarView progressView; // asigna prefab/instance de la UI (puede ser un child o global)
-    [Range(0.1f, 10f)] public float progressSecondsToFull = 10f; // tiempo hasta 100%
-    public float shakeStartPercent = 0.8f; // start shake at 80%
-    public float shakeMagnitude = 0.1f; // shake displacement (units)
-    public float shakeSpeed = 20f; // frequency
+    public ProgressBarView progressView;            // referencia (puede ser shared por el manager)
+    [Range(0.1f, 120f)] public float progressSecondsToFull = 10f;
+    [Range(0.5f, 1f)] public float shakeStartPercent = 0.8f;
+    public float shakeMagnitude = 0.08f;
+    public float shakeSpeed = 10f;
 
+    [Header("Speaking pulse")]
+    [Tooltip("Amplitud de pulso (ej. 0.05 = ±5% en escala)")]
+    public float speakPulseAmplitude = 0.05f;
+    [Tooltip("Frecuencia del pulso")]
+    public float speakPulseFrequency = 4f;
+
+    // internals
     private Transform _target;
     private bool _isMoving = false;
     private bool _isLeaving = false;
 
-    private Vector3 _originPosition; // base position at destination
+    private Vector3 _originPosition;
     private Coroutine _progressCoroutine;
     private Coroutine _shakeCoroutine;
+    private Coroutine _speakPulseCoroutine;
+
+    private Vector3 _originalScale;
 
     public event Action OnReachedDestination;
     public event Action OnLeftScene;
 
+    private const float ArrivalEpsilon = 0.02f;
+
+    private void Awake()
+    {
+        _originalScale = transform.localScale;
+    }
+
+    #region Initialization & visuals
     public void Initialize(ClienteSO data)
     {
         clienteData = data;
         ApplyVisuals();
-        Debug.Log($"[ClienteController] Initialized cliente '{data?.nombre}' (id={data?.id})");
+        Debug.Log($"[ClienteController] Initialize cliente '{data?.nombre}' id={data?.id}");
     }
 
     private void ApplyVisuals()
     {
         if (clienteData == null) return;
-        if (spriteRenderer != null)
+
+        if (spriteRenderer != null && clienteData.stageSprites != null && clienteData.stageSprites.Length > 0)
         {
-            // default to first sprite if available
-            if (clienteData.stageSprites != null && clienteData.stageSprites.Length > 0)
-                spriteRenderer.sprite = clienteData.stageSprites[0];
+            spriteRenderer.sprite = clienteData.stageSprites[0];
         }
 
-        if (nameTMP != null && !string.IsNullOrEmpty(clienteData?.nombre))
+        if (nameTMP != null && !string.IsNullOrEmpty(clienteData.nombre))
+        {
             nameTMP.text = clienteData.nombre;
+        }
     }
+    #endregion
 
+    #region Movement
     public void MoveTo(Transform target)
     {
-        if (target == null) { Debug.LogWarning("MoveTo target null"); return; }
+        if (target == null)
+        {
+            Debug.LogWarning("[ClienteController] MoveTo: target null");
+            return;
+        }
+
         _target = target;
         _isMoving = true;
         _isLeaving = false;
         StopAllCoroutines();
         StartCoroutine(MoveCoroutine());
-        Debug.Log($"[ClienteController] MoveTo '{clienteData?.nombre}' -> {target.name}");
+        Debug.Log($"[ClienteController] MoveTo -> {target.name}");
     }
 
     private IEnumerator MoveCoroutine()
@@ -73,27 +104,34 @@ public class ClienteController : MonoBehaviour
         {
             transform.position = Vector3.MoveTowards(transform.position, _target.position, moveSpeed * Time.deltaTime);
             float dist = Vector3.Distance(transform.position, _target.position);
-            if (dist <= 0.02f)
+            if (dist <= ArrivalEpsilon)
             {
                 transform.position = _target.position;
                 _isMoving = false;
-                Debug.Log($"[ClienteController] Reached destination: {transform.position}");
-                // set origin base for shake
+                Debug.Log("[ClienteController] Reached destination");
                 _originPosition = transform.position;
                 OnReachedDestination?.Invoke();
-                // start progress routine
                 StartProgress();
                 yield break;
             }
             yield return null;
         }
     }
+    #endregion
 
+    #region Progress / shake
     private void StartProgress()
     {
-        // show UI
+        // fallback: buscar en escena si no asignado
+        if (progressView == null)
+        {
+            progressView = FindObjectOfType<ProgressBarView>();
+            Debug.LogWarning("[ClienteController] progressView null -> FindObjectOfType returned: " + (progressView != null));
+        }
+
         if (progressView != null) progressView.Show(0f);
-        // start coroutine
+        else Debug.LogWarning("[ClienteController] No ProgressBarView assigned or found.");
+
         _progressCoroutine = StartCoroutine(ProgressRoutine());
     }
 
@@ -107,61 +145,50 @@ public class ClienteController : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float normalized = Mathf.Clamp01(elapsed / total);
+
             if (progressView != null) progressView.SetProgress(normalized);
 
-            // update sprite at thresholds
             UpdateSpriteByProgress(normalized);
 
-            // start shake at threshold
             if (!shakeStarted && normalized >= shakeStartPercent)
             {
                 shakeStarted = true;
-                // swap to shake sprite if exists
-                SwapSpriteForStage(2); // index 2 = shake stage (convention)
+                SwapSpriteForStage(2); // convention: stageSprites[2] = shake sprite
                 _shakeCoroutine = StartCoroutine(ShakeRoutine());
             }
 
             yield return null;
         }
 
-        // reached 100%
         if (progressView != null) progressView.SetProgress(1f);
 
-        // trigger game over
-        Debug.Log("[ClienteController] Progress reached 100% -> GameOver triggered");
+        Debug.Log("[ClienteController] Progress reached 100% -> triggering GameOver");
         var flow = ServiceLocator.Get<IGameFlowService>();
-        if (flow != null)
-            flow.TriggerGameOver();
-        else
-            Debug.LogWarning("[ClienteController] No IGameFlowService registered!");
-
-        yield break;
+        if (flow != null) flow.TriggerGameOver();
+        else Debug.LogWarning("[ClienteController] IGameFlowService not registered.");
     }
 
     private void UpdateSpriteByProgress(float normalized)
     {
-        if (clienteData == null || clienteData.stageSprites == null || clienteData.stageSprites.Length == 0) return;
+        if (clienteData == null || clienteData.stageSprites == null) return;
+        if (clienteData.stageSprites.Length == 0) return;
 
-        // simple mapping: 0..0.5 -> sprite[0], 0.5..0.8 -> sprite[1], >=0.8 -> sprite[2] (shake stage)
-        if (normalized < 0.5f)
-            SwapSpriteForStage(0);
-        else if (normalized < 0.8f)
-            SwapSpriteForStage(1);
-        else
-            SwapSpriteForStage(2);
+        if (normalized < 0.5f) SwapSpriteForStage(0);
+        else if (normalized < 0.8f) SwapSpriteForStage(1);
+        else SwapSpriteForStage(2);
     }
 
     private void SwapSpriteForStage(int index)
     {
         if (clienteData == null || clienteData.stageSprites == null) return;
         if (index < 0 || index >= clienteData.stageSprites.Length) return;
+
         if (spriteRenderer != null && spriteRenderer.sprite != clienteData.stageSprites[index])
             spriteRenderer.sprite = clienteData.stageSprites[index];
     }
 
     private IEnumerator ShakeRoutine()
     {
-        // small shake around _originPosition
         while (true)
         {
             float rx = (Mathf.PerlinNoise(Time.time * shakeSpeed, 0f) - 0.5f) * 2f * shakeMagnitude;
@@ -170,8 +197,40 @@ public class ClienteController : MonoBehaviour
             yield return null;
         }
     }
+    #endregion
 
-    // When dialog finishes and manager orders the client to leave, we must stop progress and shake
+    #region Speaking pulse (scale)
+    public void StartSpeakingPulse()
+    {
+        if (_speakPulseCoroutine != null) return;
+        _speakPulseCoroutine = StartCoroutine(SpeakPulseRoutine());
+    }
+
+    public void StopSpeakingPulse()
+    {
+        if (_speakPulseCoroutine != null)
+        {
+            StopCoroutine(_speakPulseCoroutine);
+            _speakPulseCoroutine = null;
+            transform.localScale = _originalScale;
+        }
+    }
+
+    private IEnumerator SpeakPulseRoutine()
+    {
+        float t = 0f;
+        while (true)
+        {
+            t += Time.deltaTime * speakPulseFrequency * Mathf.PI * 2f;
+            float s = 1f + Mathf.Sin(t) * speakPulseAmplitude;
+            transform.localScale = _originalScale * s;
+            yield return null;
+        }
+    }
+    #endregion
+
+    #region Leave / cancel
+    // Llamado cuando el diálogo termina y queremos que se vaya: cancela progreso y shake, y luego se va
     public void CancelProgressAndLeave(Transform exitPoint, Action onFinish = null)
     {
         if (_progressCoroutine != null)
@@ -183,11 +242,13 @@ public class ClienteController : MonoBehaviour
         {
             StopCoroutine(_shakeCoroutine);
             _shakeCoroutine = null;
-            // restore exact origin position
             transform.position = _originPosition;
         }
 
         if (progressView != null) progressView.Hide();
+
+        // detener speaking pulse si estaba activo
+        StopSpeakingPulse();
 
         Leave(exitPoint, onFinish);
     }
@@ -196,13 +257,12 @@ public class ClienteController : MonoBehaviour
     {
         if (exitPoint == null)
         {
-            Debug.LogWarning("Leave: exitPoint null");
+            Debug.LogWarning("[ClienteController] Leave: exitPoint null");
             onFinish?.Invoke();
             Destroy(gameObject);
             return;
         }
 
-        // ensure progress coroutines stopped
         if (_progressCoroutine != null)
         {
             StopCoroutine(_progressCoroutine);
@@ -216,6 +276,7 @@ public class ClienteController : MonoBehaviour
         }
 
         if (progressView != null) progressView.Hide();
+        StopSpeakingPulse();
         StartCoroutine(LeaveCoroutine(exitPoint, onFinish));
     }
 
@@ -235,4 +296,5 @@ public class ClienteController : MonoBehaviour
             yield return null;
         }
     }
+    #endregion
 }
