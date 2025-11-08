@@ -959,6 +959,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 730da1d5bbc52644c9872714cede8938, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameOverPrefab: {fileID: 8461074415348429099, guid: 49b56aeef8ba5e34ea3110115b39246d, type: 3}
+  bootConfig: {fileID: 0}
 --- !u!4 &1117364825
 Transform:
   m_ObjectHideFlags: 0

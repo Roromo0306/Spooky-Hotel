@@ -9,7 +9,7 @@ public class ClienteSO : ScriptableObject
     [TextArea(2, 6)] public string[] dialogos;
 
     [Header("Visual")]
-    public Sprite sprite;
+    public Sprite[] stageSprites;
 
     // Habilidad placeholder
     public ScriptableObject habilidad;

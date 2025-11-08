@@ -16,6 +16,7 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     [SerializeField] private DialogController dialogController;
 
     private ClienteController _activeCliente;
+    public ProgressBarView sharedProgressView;
 
     protected override async Task OnStartController()
     {
@@ -68,6 +69,11 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
             Destroy(go);
             return;
         }
+        if (_activeCliente.progressView == null && sharedProgressView != null)
+        {
+            _activeCliente.progressView = sharedProgressView;
+            Debug.Log("[Manager] Asigné sharedProgressView al cliente instanciado.");
+        }
 
         _activeCliente.Initialize(data);
         _activeCliente.OnReachedDestination += HandleClienteReached;
@@ -96,15 +102,14 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     private void HandleDialogFinishedByEnter()
     {
-        // usuario pulsó ENTER ? el cliente se marcha y cuando termine spawnear el siguiente
         dialogController.OnLineAdvance -= HandleDialogLineAdvance;
         dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
 
         if (_activeCliente != null)
         {
-            _activeCliente.Leave(exitPoint, () =>
+            _activeCliente.CancelProgressAndLeave(exitPoint, () =>
             {
-                // al terminar de salir, spawn del siguiente
+                // spawn next when leave complete
                 SpawnNextClienteIfAny();
             });
         }
