@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Infrastructure.MVC;
 using UnityEngine;
 
 public class MainMenuController : ControllerBase<MainMenuModel>

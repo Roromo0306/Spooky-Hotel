@@ -1,3 +1,4 @@
+using Infrastructure.MVC;
 public class MainMenuModel : ModelBase
 {
     public enum MenuSelection

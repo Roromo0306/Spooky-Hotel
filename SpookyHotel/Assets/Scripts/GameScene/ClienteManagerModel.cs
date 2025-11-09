@@ -1,3 +1,4 @@
+using Infrastructure.MVC;
 using System.Collections.Generic;
 
 public class ClienteManagerModel : ModelBase
