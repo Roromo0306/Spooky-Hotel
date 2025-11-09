@@ -18,6 +18,11 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     private ClienteController _activeCliente;
     public ProgressBarView sharedProgressView;
 
+
+    [SerializeField] private DocumentListView documentListView; // asignar en Inspector (panel)
+    [SerializeField] private DocumentViewer documentViewer; // modal viewer
+    
+
     protected override async Task OnStartController()
     {
         // inicializar modelo con la cola
@@ -87,43 +92,81 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     {
         if (_activeCliente == null || _activeCliente.clienteData == null) return;
 
-        // Suscribir primero a los eventos del dialogController (para no perder el OnTypingStarted)
+        // Subscribe dialog events first (para typing, etc.)
         dialogController.OnLineAdvance += HandleDialogLineAdvance;
         dialogController.OnDialogFinished += HandleDialogFinishedByEnter;
         dialogController.OnTypingStarted += HandleTypingStarted;
         dialogController.OnTypingEnded += HandleTypingEnded;
 
-        // Ahora mostrar el diálogo (esto arrancará la primera línea y disparará OnTypingStarted,
-        // que ya está suscrito)
-        dialogController.ShowDialog(_activeCliente.clienteData.dialogos, _activeCliente.clienteData.nombre);
-    }
+        // Mostrar miniaturas en el mostrador (no abre el viewer)
+        var cdata = _activeCliente.clienteData;
+        var docs = new DocumentSO[] { cdata.dni, cdata.reserva };
+        if (documentListView == null)
+        {
+            documentListView = FindObjectOfType<DocumentListView>();
+            Debug.LogWarning("[Manager] documentListView was null. FindObjectOfType -> " + (documentListView != null));
+        }
 
+        if (documentListView != null)
+        {
+            documentListView.ShowDocuments(docs);
+            documentListView.OnDocumentSelected += HandleDocumentSelected;
+        }
+        else
+        {
+            Debug.LogWarning("[Manager] documentListView is null, cannot show documents.");
+        }
+
+        // Por último, mostrar diálogo
+        dialogController.ShowDialog(cdata.dialogos, cdata.nombre);
+    }
     private void HandleDialogLineAdvance(int newLineIndex)
     {
         // simple: podrías reproducir sonido, animación, etc.
         // no hacemos nada especial aquí
     }
 
+ 
     private void HandleDialogFinishedByEnter()
     {
-        // Desuscribir handlers principales
+        // quitar suscripciones del dialogController
         dialogController.OnLineAdvance -= HandleDialogLineAdvance;
         dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
-
-        // Desuscribir handlers de typing
         dialogController.OnTypingStarted -= HandleTypingStarted;
         dialogController.OnTypingEnded -= HandleTypingEnded;
+        if (documentListView != null)
+        {
+            documentListView.OnDocumentSelected -= HandleDocumentSelected;
+            documentListView.Hide();
+        }
+
+        if (documentViewer != null)
+        {
+            documentViewer.Close(); // ocultar si está abierto
+            documentViewer.OnClosed -= HandleDocumentViewerClosed;
+        }
 
         if (_activeCliente != null)
         {
-            // Llamamos a CancelProgressAndLeave para detener progreso/shake y hacer salir al cliente
             _activeCliente.CancelProgressAndLeave(exitPoint, () =>
             {
                 SpawnNextClienteIfAny();
             });
         }
+
+        if (documentListView != null)
+        {
+            documentListView.OnDocumentSelected -= HandleDocumentSelected;
+            documentListView.Hide();
+        }
+        if (documentViewer != null)
+        {
+            documentViewer.Close();
+            documentViewer.OnClosed -= HandleDocumentViewerClosed;
+        }
     }
-    private void HandleTypingStarted()
+
+private void HandleTypingStarted()
     {
         if (_activeCliente != null)
         {
@@ -140,7 +183,49 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     }
     private void HandleClienteLeft()
     {
+        // limpieza similar por seguridad
+        dialogController.OnLineAdvance -= HandleDialogLineAdvance;
+        dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
+        dialogController.OnTypingStarted -= HandleTypingStarted;
+        dialogController.OnTypingEnded -= HandleTypingEnded;
+
+        if (documentListView != null)
+        {
+            documentListView.OnDocumentSelected -= HandleDocumentSelected;
+            documentListView.Hide();
+        }
+        if (documentViewer != null)
+        {
+            documentViewer.Close();
+            documentViewer.OnClosed -= HandleDocumentViewerClosed;
+        }
         // si prefieres, también puedes usar este evento para spawnear el siguiente.
         // SpawnNextClienteIfAny();
+    }
+
+    private void HandleDocumentSelected(DocumentSO doc)
+    {
+        Debug.Log("[Manager] Document selected -> " + (doc != null ? doc.title : "null"));
+        if (doc == null) return;
+
+        if (documentViewer == null)
+        {
+            documentViewer = FindObjectOfType<DocumentViewer>();
+            Debug.LogWarning("[Manager] documentViewer was null. FindObjectOfType -> " + (documentViewer != null));
+        }
+
+        if (documentViewer != null)
+        {
+            documentViewer.Show(doc); // SOLO aquí se abre el viewer
+                                      // opcional: documentListView.Hide(); // si quieres ocultar miniaturas mientras la imagen está abierta
+            documentViewer.OnClosed -= HandleDocumentViewerClosed;
+            documentViewer.OnClosed += HandleDocumentViewerClosed;
+        }
+    }
+    private void HandleDocumentViewerClosed()
+    {
+       documentViewer.OnClosed -= HandleDocumentViewerClosed;
+        // opcional: si ocultaste la lista, vuelves a mostrarla aquí
+        // if (documentListView != null && _activeCliente != null) documentListView.ShowDocuments(new DocumentSO[]{ _activeCliente.clienteData.dni, _activeCliente.clienteData.reserva });
     }
 }

@@ -11,6 +11,10 @@ public class ClienteSO : ScriptableObject
     [Header("Visual")]
     public Sprite[] stageSprites;
 
+    [Header("Documents (per-client)")]
+    public DocumentSO dni;
+    public DocumentSO reserva;
+
     // Habilidad placeholder
     public ScriptableObject habilidad;
 }

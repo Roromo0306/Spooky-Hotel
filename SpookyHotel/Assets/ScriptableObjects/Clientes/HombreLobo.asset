@@ -17,5 +17,9 @@ MonoBehaviour:
   numeroNoches: 2
   dialogos:
   - hola soy un hombre lobo
-  sprite: {fileID: 21300000, guid: 0e5734f85fbb1074ab71c5cde86307d7, type: 3}
+  - hola soy un hombre lobo
+  stageSprites:
+  - {fileID: 21300000, guid: 0e5734f85fbb1074ab71c5cde86307d7, type: 3}
+  - {fileID: 21300000, guid: 0e5734f85fbb1074ab71c5cde86307d7, type: 3}
+  - {fileID: 21300000, guid: 0e5734f85fbb1074ab71c5cde86307d7, type: 3}
   habilidad: {fileID: 11400000}
