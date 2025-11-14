@@ -62,7 +62,7 @@ public class ClienteController : MonoBehaviour
     {
         clienteData = data;
         ApplyVisuals();
-        Debug.Log($"[ClienteController] Initialize cliente '{data?.nombre}' id={data?.id}");
+        Debug.Log($"[ClienteController] Initialize cliente '{data?.nombre}' ");
     }
 
     private void ApplyVisuals()
