@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: CameraSettings
   m_EditorClassIdentifier: 
   moveSpeed: 1
-  mouseSensitivity: 0.5
+  mouseSensitivity: 1
   minLimits: {x: -1, y: -3.35, z: -10}
   maxLimits: {x: 1, y: 3.35, z: -10}
