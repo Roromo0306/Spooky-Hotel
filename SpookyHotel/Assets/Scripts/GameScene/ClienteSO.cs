@@ -15,8 +15,7 @@ public class ClienteSO : ScriptableObject
     public DocumentSO dni;
     public DocumentSO reserva;
 
-    // Habilidad placeholder
-    public ScriptableObject habilidad;
+
 
     [Header("Rules")]
     public bool cannotBeInSun = false;

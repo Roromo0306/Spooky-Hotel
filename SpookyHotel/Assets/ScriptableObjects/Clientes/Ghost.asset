@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 93d9f82514268e544aa807ccfbdefed6, type: 3}
-  m_Name: Vampiro
+  m_Name: Ghost
   m_EditorClassIdentifier: 
   nombre: "Dr\xE1cula"
   type: 0
@@ -21,9 +21,9 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 9de146be39a5e5043839c00d0545ef73, type: 3}
   - {fileID: 21300000, guid: 9de146be39a5e5043839c00d0545ef73, type: 3}
   - {fileID: 21300000, guid: 9de146be39a5e5043839c00d0545ef73, type: 3}
-  icon: {fileID: 228094402, guid: fe65b1b3e5eb9d142b3195729b608b4d, type: 3}
+  icon: {fileID: 343283242, guid: fe65b1b3e5eb9d142b3195729b608b4d, type: 3}
   dni: {fileID: 11400000, guid: 34cb6acf7ec6ef145b5ef885425409ae, type: 2}
   reserva: {fileID: 11400000, guid: 96feb9b29239b4648a4546710147b50d, type: 2}
-  cannotBeInSun: 1
-  wantsToBeAlone: 0
-  cannotBeAdjacentTo: 0100000002000000
+  cannotBeInSun: 0
+  wantsToBeAlone: 1
+  cannotBeAdjacentTo: 0000000001000000020000000300000004000000

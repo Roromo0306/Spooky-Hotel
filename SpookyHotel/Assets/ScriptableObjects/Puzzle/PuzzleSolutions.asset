@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5cdc8f19ffaf8d4498f4fd8e2faaf70, type: 3}
+  m_Name: PuzzleSolutions
+  m_EditorClassIdentifier: 
+  solutionsText: "Soluci\xF3n 1 V.W ZS. ..G ... Soluci\xF3n 2 V.W ZS. ... G.. Soluci\xF3n
+    3 V.W ZS. ... .G. Soluci\xF3n 4 V.W ZS. ... ..G Soluci\xF3n 5 V.W .S. Z.G ...
+    Soluci\xF3n 6 V.W .S. Z.. .G. Soluci\xF3n 7 V.W .S. Z.. ..G Soluci\xF3n 8 V.W
+    .S. .Z. G.. Soluci\xF3n 9 V.W .S. .Z. ..G Soluci\xF3n 10 V.W .S. G.Z ... Soluci\xF3n
+    11 V.W .S. ..Z G.. Soluci\xF3n 12 V.W .S. ..Z .G."
