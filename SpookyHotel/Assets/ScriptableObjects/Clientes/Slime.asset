@@ -27,3 +27,4 @@ MonoBehaviour:
   cannotBeInSun: 0
   wantsToBeAlone: 0
   cannotBeAdjacentTo: 00000000
+  allowedCellIndices: 04000000

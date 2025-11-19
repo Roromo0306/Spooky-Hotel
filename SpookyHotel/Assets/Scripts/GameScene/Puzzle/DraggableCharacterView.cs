@@ -1,48 +1,52 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.TextCore.Text;
-using UnityEngine.UI;
 
-[RequireComponent(typeof(Image))]
 public class DraggableCharacterView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     public ClienteSO data;
-    private Canvas _canvas;
-    private RectTransform _rt;
-    private CanvasGroup _cg;
-    private Vector3 _startPos;
-    private Transform _originalParent;
+
+    private Transform originalParent;
+    private Vector3 originalPosition;
+    private CanvasGroup canvasGroup;
 
     private void Awake()
     {
-        _rt = GetComponent<RectTransform>();
-        _canvas = GetComponentInParent<Canvas>();
-        _cg = gameObject.AddComponent<CanvasGroup>();
+        canvasGroup = GetComponent<CanvasGroup>();
+        if (canvasGroup == null)
+            canvasGroup = gameObject.AddComponent<CanvasGroup>();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        _startPos = _rt.anchoredPosition3D;
-        _originalParent = transform.parent;
-        transform.SetParent(_canvas.transform, true);
-        _cg.blocksRaycasts = false;
+        originalParent = transform.parent;
+        originalPosition = transform.localPosition;
+
+        canvasGroup.blocksRaycasts = false;
+        canvasGroup.alpha = 0.8f;
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        Vector2 pos;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvas.transform as RectTransform, eventData.position, eventData.pressEventCamera, out pos);
-        _rt.anchoredPosition = pos;
+        transform.position = eventData.position;
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        _cg.blocksRaycasts = true;
-        if (transform.parent == _canvas.transform)
+        canvasGroup.blocksRaycasts = true;
+        canvasGroup.alpha = 1f;
+
+        // Si no se movió a una celda permitida, revertimos
+        if (transform.parent == originalParent || transform.parent == null)
         {
-            transform.SetParent(_originalParent, true);
-            _rt.anchoredPosition3D = _startPos;
+            Revert();
         }
     }
+
+    public void Revert()
+    {
+        transform.SetParent(originalParent, false);
+        transform.localPosition = originalPosition;
+    }
 }
+
 

@@ -1,6 +1,8 @@
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.TextCore.Text;
+using UnityEngine.UI;
+using GameScene.Puzzle;
 
 public class PuzzleController : MonoBehaviour
 {
@@ -8,57 +10,59 @@ public class PuzzleController : MonoBehaviour
     public PuzzleView view;
 
     [Header("Dependencies")]
-    public MonoBehaviour puzzleServiceBehaviour; // optional; if null we create one
+    public MonoBehaviour puzzleServiceBehaviour;
     private IPuzzleService _puzzleService;
 
     [Header("Prefabs")]
     public GameObject draggablePrefab;
 
     [Header("Config")]
-    public ClienteSO[] spawnOrder; // queue
+    public ClienteSO[] spawnOrder;
     private int _spawnIndex = 0;
 
-    [Header("Solutions (drag PuzzleSolutionsSO here)")]
+    [Header("Solutions")]
     public PuzzleSolutionsSO solutionsSO;
+
+    [Header("Destino de clientes (UI Panel en Canvas)")]
+    public RectTransform counterArea; // panel donde aparecen los clientes
 
     private PuzzleModel _model;
     private List<DraggableCharacterView> _activeDraggables = new List<DraggableCharacterView>();
     private CellView[] _cells;
 
-    // Keep last spawned draggable reference to compute allowed indices for it
     private DraggableCharacterView _currentDraggable = null;
+    private int? _pendingPlacementIndex = null;
     private bool[] _currentAllowedIndices = null;
 
     private void Awake()
     {
+        // Configurar servicio de puzzle
         if (puzzleServiceBehaviour != null && puzzleServiceBehaviour is IPuzzleService)
             _puzzleService = puzzleServiceBehaviour as IPuzzleService;
         else
             _puzzleService = new PuzzleService(new DefaultPlacementStrategy());
 
         _model = new PuzzleModel();
-        if (view == null)
+
+        if (view == null || view.gridView == null)
         {
-            Debug.LogError("[PuzzleController] view not assigned.");
-            return;
-        }
-        if (view.gridView == null)
-        {
-            Debug.LogError("[PuzzleController] view.gridView not assigned.");
+            Debug.LogError("[PuzzleController] view o gridView no asignado.");
             return;
         }
 
+        // Inicializar grid
         view.gridView.BuildGrid();
         _cells = view.gridView.Cells;
-
         foreach (var c in _cells) c.OnDropped += HandleDrop;
 
+        // Botones
         view.assignButton.onClick.RemoveAllListeners();
         view.assignButton.onClick.AddListener(OnAssignClicked);
         view.closeButton.onClick.RemoveAllListeners();
         view.closeButton.onClick.AddListener(() => view.Hide());
 
         view.Show();
+
         SpawnNextCharacter();
     }
 
@@ -67,6 +71,15 @@ public class PuzzleController : MonoBehaviour
         foreach (var c in _cells) c.OnDropped -= HandleDrop;
         view.assignButton.onClick.RemoveAllListeners();
         view.closeButton.onClick.RemoveAllListeners();
+    }
+
+    private void Update()
+    {
+        // Mostrar draggable cuando "llega" al mostrador (simulado)
+        if (_currentDraggable != null && !_currentDraggable.gameObject.activeSelf)
+        {
+            ShowDraggableAtCounter();
+        }
     }
 
     private void SpawnNextCharacter()
@@ -81,96 +94,95 @@ public class PuzzleController : MonoBehaviour
         }
 
         var so = spawnOrder[_spawnIndex++];
+
+        // Instanciar prefab dentro del spawnArea en Canvas
         var go = Instantiate(draggablePrefab, view.spawnArea);
+        go.transform.localScale = Vector3.one;
+        go.SetActive(false); // oculto hasta que llegue al mostrador
+
         var drag = go.GetComponent<DraggableCharacterView>();
         drag.data = so;
-        var img = go.GetComponent<UnityEngine.UI.Image>();
-        if (img != null && so.icon != null) img.sprite = so.icon;
-        _activeDraggables.Add(drag);
 
-        // compute allowed indices for this spawned character
+        // Asignar sprite e icono 120x120
+        var img = go.GetComponentInChildren<Image>();
+        if (img != null && so.icon != null)
+        {
+            img.sprite = so.icon;
+            img.rectTransform.sizeDelta = new Vector2(120, 120);
+        }
+
+        _activeDraggables.Add(drag);
         _currentDraggable = drag;
+        _pendingPlacementIndex = null;
         _currentAllowedIndices = _puzzleService.GetAllowedIndices(so, _model);
+    }
+
+    private void ShowDraggableAtCounter()
+    {
+        if (_currentDraggable == null) return;
+
+        _currentDraggable.gameObject.SetActive(true);
+        _currentDraggable.transform.SetParent(counterArea, false);
+        _currentDraggable.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+
         view.gridView.SetAllowedIndices(_currentAllowedIndices);
     }
 
     private void HandleDrop(int index, DraggableCharacterView dragged)
     {
-        Debug.Log($"Dropped attempt {dragged.data.nombre} into cell {index}");
-
-        // If the cell isn't allowed for the current draggable, reject: model doesn't change
         if (dragged != _currentDraggable)
         {
-            // not the current spawned draggable? still ignore and revert
-            Debug.Log("[PuzzleController] Dropped an older draggable or unknown item; rejecting.");
-            // we will let the draggable revert in OnEndDrag (it will detect parent unchanged)
+            dragged.Revert();
+            _pendingPlacementIndex = null;
+            view.gridView.ClearAllowedMarks();
             return;
         }
 
         if (_currentAllowedIndices == null || index < 0 || index >= _currentAllowedIndices.Length || !_currentAllowedIndices[index])
         {
-            Debug.LogWarning($"Placement not allowed for {dragged.data.nombre} at {index}");
-            // Optional: show a UI message to the player with reason. Let's compute reason:
             string reason;
-            _puzzleService.ValidatePlacement(dragged.data, index, _model, out reason); // will fill reason (even if false)
-            Debug.Log("[PuzzleController] Rejected placement reason: " + reason);
-            // revert draggable to spawn area (we move it back)
-            dragged.transform.SetParent(view.spawnArea, false);
+            _puzzleService.ValidatePlacement(dragged.data, index, _model, out reason);
+            Debug.LogWarning($"Placement not allowed for {dragged.data.nombre} at {index}: {reason}");
+            dragged.Revert();
+            _pendingPlacementIndex = null;
             return;
         }
 
-        // if allowed: place into model (permanent until assignment confirmed)
-        _model.PlaceAt(index, dragged.data);
-
-        // move object into this cell visually (CellView already did SetParent)
-        // Note: OnAssignClicked will finalize the assignment (destroy draggable and spawn next)
+        _pendingPlacementIndex = index;
+        var cell = _cells[index];
+        dragged.transform.SetParent(cell.contentParent, false);
+        dragged.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
     }
 
     private void OnAssignClicked()
     {
-        // Assign the last placed current draggable (if any)
-        // We search if any cell currently hosts _currentDraggable.data
-        if (_currentDraggable == null)
-        {
-            Debug.Log("[PuzzleController] No current draggable to assign.");
-            return;
-        }
+        if (_currentDraggable == null || _pendingPlacementIndex == null) return;
 
-        // find index where model has that data
-        int placedIndex = _model.IndexOf(_currentDraggable.data);
-        if (placedIndex < 0)
-        {
-            Debug.Log("[PuzzleController] Current draggable not placed in any cell yet.");
-            return;
-        }
-
-        // validate again (should be allowed)
+        int placedIndex = _pendingPlacementIndex.Value;
         string reason;
+
         if (_puzzleService.ValidatePlacement(_currentDraggable.data, placedIndex, _model, out reason))
         {
-            // finalize: destroy UI draggable and remove from active list
+            _model.PlaceAt(placedIndex, _currentDraggable.data);
+
+            // Cliente se va
             Destroy(_currentDraggable.gameObject);
             _activeDraggables.Remove(_currentDraggable);
 
-            // clear allowed marks and spawn next
-            view.gridView.ClearAllowedMarks();
+            _pendingPlacementIndex = null;
             _currentDraggable = null;
             _currentAllowedIndices = null;
+            view.gridView.ClearAllowedMarks();
 
             SpawnNextCharacter();
 
-            int assignedCount = CountAssigned();
-            if (assignedCount >= 5)
-            {
-                StartCoroutine(EndPuzzleRoutine());
-            }
+            if (CountAssigned() >= 5) StartCoroutine(EndPuzzleRoutine());
         }
         else
         {
-            Debug.LogWarning($"(assign) Placement rejected for {_currentDraggable.data.nombre} at {placedIndex}: {reason}");
-            // revert placement
-            _model.RemoveAt(placedIndex);
-            _currentDraggable.transform.SetParent(view.spawnArea, false);
+            Debug.LogWarning($"Placement rejected for {_currentDraggable.data.nombre} at {placedIndex}: {reason}");
+            _currentDraggable.Revert();
+            _pendingPlacementIndex = null;
         }
     }
 
@@ -182,15 +194,18 @@ public class PuzzleController : MonoBehaviour
         return count;
     }
 
-    private System.Collections.IEnumerator EndPuzzleRoutine()
+    private IEnumerator EndPuzzleRoutine()
     {
         var fade = FindObjectOfType<FadeController>();
         if (fade != null) yield return fade.FadeOutCoroutine();
 
         var result = _puzzleService.EvaluateFinal(_model, solutionsSO);
         Debug.Log($"Clientes satisfechos {result.satisfied}/{result.totalPlaced}");
-        // TODO: show result UI
 
         if (fade != null) yield return fade.FadeInCoroutine();
     }
 }
+
+
+
+

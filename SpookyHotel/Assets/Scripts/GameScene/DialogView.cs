@@ -26,7 +26,8 @@ public class DialogView : MonoBehaviour
 
     public void SetName(string name)
     {
-        if (nameText) nameText.text = name;
+     
+   if (nameText) nameText.text = name;
     }
 }
 

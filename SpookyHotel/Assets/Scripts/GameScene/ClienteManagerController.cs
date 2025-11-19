@@ -229,4 +229,24 @@ private void HandleTypingStarted()
         // opcional: si ocultaste la lista, vuelves a mostrarla aquí
         // if (documentListView != null && _activeCliente != null) documentListView.ShowDocuments(new DocumentSO[]{ _activeCliente.clienteData.dni, _activeCliente.clienteData.reserva });
     }
+
+    private void HandlePuzzleSolved()
+    {
+        if (_activeCliente == null) return;
+
+        // Mostrar diálogo final
+        var cdata = _activeCliente.clienteData;
+        dialogController.ShowDialog(cdata.dialogos, cdata.nombre);
+
+        // Esperar que el jugador cierre diálogo (ENTER)
+        dialogController.OnDialogFinished += () =>
+        {
+            dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
+            _activeCliente.CancelProgressAndLeave(exitPoint, () =>
+            {
+                SpawnNextClienteIfAny();
+            });
+        };
+    }
+
 }

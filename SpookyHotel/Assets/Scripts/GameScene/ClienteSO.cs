@@ -15,11 +15,15 @@ public class ClienteSO : ScriptableObject
     public DocumentSO dni;
     public DocumentSO reserva;
 
-
-
     [Header("Rules")]
     public bool cannotBeInSun = false;
     public bool wantsToBeAlone = false;
     public CharacterType[] cannotBeAdjacentTo;
-}
 
+    [Header("Optional: designer-specified allowed cells (indices 0..11)")]
+    [Tooltip("Si no se especifica (array vacío), se usará la estrategia dinámica. Si se especifican índices, solo esas celdas podrán usarse.")]
+    public int[] allowedCellIndices;
+
+    // Helper: facilidad para comprobar si tiene configuración explícita
+    public bool HasAllowedCells => allowedCellIndices != null && allowedCellIndices.Length > 0;
+}
