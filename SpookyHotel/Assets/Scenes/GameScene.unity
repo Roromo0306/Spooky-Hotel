@@ -3661,7 +3661,16 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 77370d14bd2bd614db20ac6634976873, type: 2}
   - {fileID: 11400000, guid: a7464c50e729baf4a8f07b3e7d232d77, type: 2}
   solutionsSO: {fileID: 11400000, guid: f1b02bcf18cdf00498d4f931b514d8e8, type: 2}
-  counterDestination: {fileID: 2146848768}
+  counterArea: {fileID: 1112761613}
+  clienteWorldPrefab: {fileID: 7774026970585997367, guid: e235772d46e78124798e673285b0ebdb, type: 3}
+  worldSpawnPoint: {fileID: 1631586822}
+  worldCounterTransform: {fileID: 2146848768}
+  clientExitPoint: {fileID: 183171163}
+  autoSpawnNextUI: 1
+  autoSpawnFirstWorldClient: 0
+  onClientLeft:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!4 &1991754863
 Transform:
   m_ObjectHideFlags: 0

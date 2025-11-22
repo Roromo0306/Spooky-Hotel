@@ -1,14 +1,12 @@
-using System.Collections;
-using Infrastructure.MVC;
-using System.Collections.Generic;
+ï»¿using Infrastructure.MVC;
 using System.Threading.Tasks;
 using UnityEngine;
 
 public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 {
-    [Header("Configuración")]
-    [SerializeField] private ClienteSO[] clientesToSpawn; // asigna los 5 S.O. aquí en el Inspector
-    [SerializeField] private GameObject clientePrefab;    // prefab con ClienteController
+    [Header("ConfiguraciÃ³n")]
+    [SerializeField] private ClienteSO[] clientesToSpawn;
+    [SerializeField] private GameObject clientePrefab;
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private Transform destinationPoint;
     [SerializeField] private Transform exitPoint;
@@ -19,22 +17,16 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     private ClienteController _activeCliente;
     public ProgressBarView sharedProgressView;
 
-
-    [SerializeField] private DocumentListView documentListView; // asignar en Inspector (panel)
-    [SerializeField] private DocumentViewer documentViewer; // modal viewer
-    
+    [SerializeField] private DocumentListView documentListView;
+    [SerializeField] private DocumentViewer documentViewer;
 
     protected override async Task OnStartController()
     {
-        // inicializar modelo con la cola
         Model = new ClienteManagerModel();
         Model.SetQueue(clientesToSpawn);
         Model.StartProcessing();
-
-        // subscribir si necesitas reaccionar a cambios
         Model.Subscribe(OnModelChanged);
 
-        // iniciar el primer spawn
         SpawnNextClienteIfAny();
 
         await Task.CompletedTask;
@@ -42,8 +34,7 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     protected override void OnModelChange()
     {
-        // para este flujo quizá no necesites hacer nada aquí,
-        // pero queda listo si quieres enlazar UI a Model.
+        // No usamos por ahora
     }
 
     protected override void OnDestroyController()
@@ -54,7 +45,7 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     private void OnModelChanged()
     {
-        // placeholder - en caso de que quieras actualizar UI basado en model
+        // Placeholder para UI ligada al modelo
     }
 
     private void SpawnNextClienteIfAny()
@@ -62,9 +53,8 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
         if (Model == null) return;
         if (!Model.HasMore()) return;
 
-        // Avanzar índice y crear el siguiente cliente
         Model.AdvanceIndex();
-        ClienteSO? data = Model.GetCurrentCliente();
+        ClienteSO data = Model.GetCurrentCliente();
         if (data == null) return;
 
         GameObject go = Instantiate(clientePrefab, spawnPoint.position, Quaternion.identity);
@@ -75,17 +65,17 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
             Destroy(go);
             return;
         }
+
         if (_activeCliente.progressView == null && sharedProgressView != null)
         {
             _activeCliente.progressView = sharedProgressView;
-            Debug.Log("[Manager] Asigné sharedProgressView al cliente instanciado.");
+            Debug.Log("[Manager] AsignÃ© sharedProgressView al cliente instanciado.");
         }
 
         _activeCliente.Initialize(data);
         _activeCliente.OnReachedDestination += HandleClienteReached;
         _activeCliente.OnLeftScene += HandleClienteLeft;
 
-        // iniciar movimiento hacia destinationPoint
         _activeCliente.MoveTo(destinationPoint);
     }
 
@@ -93,15 +83,25 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     {
         if (_activeCliente == null || _activeCliente.clienteData == null) return;
 
-        // Subscribe dialog events first (para typing, etc.)
+        // Asegurar DialogController
+        if (dialogController == null)
+        {
+            dialogController = FindObjectOfType<DialogController>();
+            if (dialogController == null)
+            {
+                Debug.LogError("[Manager] No se encontrÃ³ DialogController en la escena.");
+                return;
+            }
+        }
+
+        // Suscribir eventos necesarios (liberarse cuando termine)
         dialogController.OnLineAdvance += HandleDialogLineAdvance;
         dialogController.OnDialogFinished += HandleDialogFinishedByEnter;
-        dialogController.OnTypingStarted += HandleTypingStarted;
-        dialogController.OnTypingEnded += HandleTypingEnded;
 
-        // Mostrar miniaturas en el mostrador (no abre el viewer)
+        // Mostrar documentos del cliente
         var cdata = _activeCliente.clienteData;
         var docs = new DocumentSO[] { cdata.dni, cdata.reserva };
+
         if (documentListView == null)
         {
             documentListView = FindObjectOfType<DocumentListView>();
@@ -118,23 +118,23 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
             Debug.LogWarning("[Manager] documentListView is null, cannot show documents.");
         }
 
-        // Por último, mostrar diálogo
-        dialogController.ShowDialog(cdata.dialogos, cdata.nombre);
-    }
-    private void HandleDialogLineAdvance(int newLineIndex)
-    {
-        // simple: podrías reproducir sonido, animación, etc.
-        // no hacemos nada especial aquí
+        // OJO: el diÃ¡logo lo muestra el ClienteController,
+        // aquÃ­ solo preparamos documentos y eventos.
     }
 
- 
+    private void HandleDialogLineAdvance(int newLineIndex)
+    {
+        // AquÃ­ podrÃ­as meter sonidos, animaciones, etc.
+    }
+
     private void HandleDialogFinishedByEnter()
     {
-        // quitar suscripciones del dialogController
-        dialogController.OnLineAdvance -= HandleDialogLineAdvance;
-        dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
-        dialogController.OnTypingStarted -= HandleTypingStarted;
-        dialogController.OnTypingEnded -= HandleTypingEnded;
+        if (dialogController != null)
+        {
+            dialogController.OnLineAdvance -= HandleDialogLineAdvance;
+            dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
+        }
+
         if (documentListView != null)
         {
             documentListView.OnDocumentSelected -= HandleDocumentSelected;
@@ -143,7 +143,7 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
         if (documentViewer != null)
         {
-            documentViewer.Close(); // ocultar si está abierto
+            documentViewer.Close();
             documentViewer.OnClosed -= HandleDocumentViewerClosed;
         }
 
@@ -154,54 +154,27 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
                 SpawnNextClienteIfAny();
             });
         }
-
-        if (documentListView != null)
-        {
-            documentListView.OnDocumentSelected -= HandleDocumentSelected;
-            documentListView.Hide();
-        }
-        if (documentViewer != null)
-        {
-            documentViewer.Close();
-            documentViewer.OnClosed -= HandleDocumentViewerClosed;
-        }
     }
 
-private void HandleTypingStarted()
-    {
-        if (_activeCliente != null)
-        {
-            _activeCliente.StartSpeakingPulse();
-        }
-    }
-
-    private void HandleTypingEnded()
-    {
-        if (_activeCliente != null)
-        {
-            _activeCliente.StopSpeakingPulse();
-        }
-    }
     private void HandleClienteLeft()
     {
-        // limpieza similar por seguridad
-        dialogController.OnLineAdvance -= HandleDialogLineAdvance;
-        dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
-        dialogController.OnTypingStarted -= HandleTypingStarted;
-        dialogController.OnTypingEnded -= HandleTypingEnded;
+        if (dialogController != null)
+        {
+            dialogController.OnLineAdvance -= HandleDialogLineAdvance;
+            dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
+        }
 
         if (documentListView != null)
         {
             documentListView.OnDocumentSelected -= HandleDocumentSelected;
             documentListView.Hide();
         }
+
         if (documentViewer != null)
         {
             documentViewer.Close();
             documentViewer.OnClosed -= HandleDocumentViewerClosed;
         }
-        // si prefieres, también puedes usar este evento para spawnear el siguiente.
-        // SpawnNextClienteIfAny();
     }
 
     private void HandleDocumentSelected(DocumentSO doc)
@@ -217,36 +190,49 @@ private void HandleTypingStarted()
 
         if (documentViewer != null)
         {
-            documentViewer.Show(doc); // SOLO aquí se abre el viewer
-                                      // opcional: documentListView.Hide(); // si quieres ocultar miniaturas mientras la imagen está abierta
+            documentViewer.Show(doc);
             documentViewer.OnClosed -= HandleDocumentViewerClosed;
             documentViewer.OnClosed += HandleDocumentViewerClosed;
         }
     }
+
     private void HandleDocumentViewerClosed()
     {
-       documentViewer.OnClosed -= HandleDocumentViewerClosed;
-        // opcional: si ocultaste la lista, vuelves a mostrarla aquí
-        // if (documentListView != null && _activeCliente != null) documentListView.ShowDocuments(new DocumentSO[]{ _activeCliente.clienteData.dni, _activeCliente.clienteData.reserva });
+        if (documentViewer != null)
+            documentViewer.OnClosed -= HandleDocumentViewerClosed;
     }
 
     private void HandlePuzzleSolved()
     {
         if (_activeCliente == null) return;
 
-        // Mostrar diálogo final
         var cdata = _activeCliente.clienteData;
+
+        if (dialogController == null)
+        {
+            dialogController = FindObjectOfType<DialogController>();
+            if (dialogController == null)
+            {
+                Debug.LogError("[Manager] No se encontrÃ³ DialogController para puzzle.");
+                return;
+            }
+        }
+
         dialogController.ShowDialog(cdata.dialogos, cdata.nombre);
 
-        // Esperar que el jugador cierre diálogo (ENTER)
-        dialogController.OnDialogFinished += () =>
+        void OnFinalDialogFinished()
         {
-            dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
-            _activeCliente.CancelProgressAndLeave(exitPoint, () =>
-            {
-                SpawnNextClienteIfAny();
-            });
-        };
-    }
+            dialogController.OnDialogFinished -= OnFinalDialogFinished;
 
+            if (_activeCliente != null)
+            {
+                _activeCliente.CancelProgressAndLeave(exitPoint, () =>
+                {
+                    SpawnNextClienteIfAny();
+                });
+            }
+        }
+
+        dialogController.OnDialogFinished += OnFinalDialogFinished;
+    }
 }

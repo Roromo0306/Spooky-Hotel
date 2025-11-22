@@ -1,14 +1,8 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// Control del cliente (View/Behaviour).
-/// Soporta: Initialize(ClienteSO), MoveTo(target), llegada->StartProgress(),
-/// CancelProgressAndLeave(exitPoint), Leave(exitPoint).
-/// Adem�s StartSpeakingPulse/StopSpeakingPulse para el pulso de escala mientras se escribe.
-/// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class ClienteController : MonoBehaviour
 {
@@ -23,28 +17,23 @@ public class ClienteController : MonoBehaviour
     public float moveSpeed = 2f;
 
     [Header("Progreso")]
-    public ProgressBarView progressView;            // referencia (puede ser shared por el manager)
-    [Range(0.1f, 120f)] public float progressSecondsToFull = 10f;
+    public ProgressBarView progressView;
+    [SerializeField][Range(0.1f, 120f)] private float progressSecondsToFull = 30f;
     [Range(0.5f, 1f)] public float shakeStartPercent = 0.8f;
     public float shakeMagnitude = 0.08f;
     public float shakeSpeed = 10f;
 
     [Header("Speaking pulse")]
-    [Tooltip("Amplitud de pulso (ej. 0.05 = �5% en escala)")]
     public float speakPulseAmplitude = 0.05f;
-    [Tooltip("Frecuencia del pulso")]
     public float speakPulseFrequency = 4f;
 
-    // internals
     private Transform _target;
     private bool _isMoving = false;
-    private bool _isLeaving = false;
 
     private Vector3 _originPosition;
     private Coroutine _progressCoroutine;
     private Coroutine _shakeCoroutine;
     private Coroutine _speakPulseCoroutine;
-
     private Vector3 _originalScale;
 
     public event Action OnReachedDestination;
@@ -52,50 +41,43 @@ public class ClienteController : MonoBehaviour
 
     private const float ArrivalEpsilon = 0.02f;
 
+    private DialogController _dialogController; // cache para desuscribir
+
     private void Awake()
     {
         _originalScale = transform.localScale;
+        Reset();
     }
 
-    #region Initialization & visuals
+    private void Reset()
+    {
+        progressSecondsToFull = 30f;
+    }
+
     public void Initialize(ClienteSO data)
     {
         clienteData = data;
         ApplyVisuals();
-        Debug.Log($"[ClienteController] Initialize cliente '{data?.nombre}' ");
     }
 
     private void ApplyVisuals()
     {
         if (clienteData == null) return;
 
-        if (spriteRenderer != null && clienteData.stageSprites != null && clienteData.stageSprites.Length > 0)
-        {
+        if (spriteRenderer != null && clienteData.stageSprites.Length > 0)
             spriteRenderer.sprite = clienteData.stageSprites[0];
-        }
 
-        if (nameTMP != null && !string.IsNullOrEmpty(clienteData.nombre))
-        {
+        if (nameTMP != null)
             nameTMP.text = clienteData.nombre;
-        }
     }
-    #endregion
 
-    #region Movement
     public void MoveTo(Transform target)
     {
-        if (target == null)
-        {
-            Debug.LogWarning("[ClienteController] MoveTo: target null");
-            return;
-        }
-
+        if (target == null) return;
         _target = target;
         _isMoving = true;
-        _isLeaving = false;
         StopAllCoroutines();
         StartCoroutine(MoveCoroutine());
-        Debug.Log($"[ClienteController] MoveTo -> {target.name}");
     }
 
     private IEnumerator MoveCoroutine()
@@ -103,35 +85,63 @@ public class ClienteController : MonoBehaviour
         while (_isMoving && _target != null)
         {
             transform.position = Vector3.MoveTowards(transform.position, _target.position, moveSpeed * Time.deltaTime);
-            float dist = Vector3.Distance(transform.position, _target.position);
-            if (dist <= ArrivalEpsilon)
+            if (Vector3.Distance(transform.position, _target.position) <= ArrivalEpsilon)
             {
                 transform.position = _target.position;
                 _isMoving = false;
-                Debug.Log("[ClienteController] Reached destination");
                 _originPosition = transform.position;
+
+                // Notificar llegada al manager
                 OnReachedDestination?.Invoke();
+
+                // Auto-registrar al PuzzleController
+                var pc = FindObjectOfType<PuzzleController>();
+                if (pc != null) pc.RegisterCurrentClient(this);
+
+                // Empezar barra de progreso
                 StartProgress();
+
+                // MOSTRAR DIÁLOGO de este cliente y enganchar el pulse
+                TryShowDialogForThisClient();
+
                 yield break;
             }
             yield return null;
         }
     }
-    #endregion
 
-    #region Progress / shake
-    private void StartProgress()
+    private void TryShowDialogForThisClient()
     {
-        // fallback: buscar en escena si no asignado
-        if (progressView == null)
+        if (clienteData == null || clienteData.dialogos == null || clienteData.dialogos.Length == 0)
         {
-            progressView = FindObjectOfType<ProgressBarView>();
-            Debug.LogWarning("[ClienteController] progressView null -> FindObjectOfType returned: " + (progressView != null));
+            Debug.LogWarning("[ClienteController] Cliente " +
+                             (clienteData != null ? clienteData.nombre : "null") +
+                             " no tiene diálogos definidos.");
+            return;
         }
 
-        if (progressView != null) progressView.Show(0f);
-        else Debug.LogWarning("[ClienteController] No ProgressBarView assigned or found.");
+        _dialogController = FindObjectOfType<DialogController>();
+        if (_dialogController == null)
+        {
+            Debug.LogError("[ClienteController] No se encontró DialogController en la escena.");
+            return;
+        }
 
+        // Suscribimos ESTE cliente a los eventos de typing del diálogo
+        _dialogController.OnTypingStarted += HandleTypingStartedLocal;
+        _dialogController.OnTypingEnded += HandleTypingEndedLocal;
+        _dialogController.OnDialogFinished += HandleDialogFinishedLocal;
+
+        Debug.Log("[ClienteController] Mostrando diálogo de " + clienteData.nombre +
+                  " con " + clienteData.dialogos.Length + " líneas.");
+
+        _dialogController.ShowDialog(clienteData.dialogos, clienteData.nombre);
+    }
+
+    private void StartProgress()
+    {
+        if (progressView == null) progressView = FindObjectOfType<ProgressBarView>();
+        if (progressView != null) progressView.Show(0f);
         _progressCoroutine = StartCoroutine(ProgressRoutine());
     }
 
@@ -145,15 +155,11 @@ public class ClienteController : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float normalized = Mathf.Clamp01(elapsed / total);
-
             if (progressView != null) progressView.SetProgress(normalized);
-
-            UpdateSpriteByProgress(normalized);
 
             if (!shakeStarted && normalized >= shakeStartPercent)
             {
                 shakeStarted = true;
-                SwapSpriteForStage(2); // convention: stageSprites[2] = shake sprite
                 _shakeCoroutine = StartCoroutine(ShakeRoutine());
             }
 
@@ -162,44 +168,55 @@ public class ClienteController : MonoBehaviour
 
         if (progressView != null) progressView.SetProgress(1f);
 
-        Debug.Log("[ClienteController] Progress reached 100% -> triggering GameOver");
         var flow = ServiceLocator.Get<IGameFlowService>();
         if (flow != null) flow.TriggerGameOver();
-        else Debug.LogWarning("[ClienteController] IGameFlowService not registered.");
-    }
-
-    private void UpdateSpriteByProgress(float normalized)
-    {
-        if (clienteData == null || clienteData.stageSprites == null) return;
-        if (clienteData.stageSprites.Length == 0) return;
-
-        if (normalized < 0.5f) SwapSpriteForStage(0);
-        else if (normalized < 0.8f) SwapSpriteForStage(1);
-        else SwapSpriteForStage(2);
-    }
-
-    private void SwapSpriteForStage(int index)
-    {
-        if (clienteData == null || clienteData.stageSprites == null) return;
-        if (index < 0 || index >= clienteData.stageSprites.Length) return;
-
-        if (spriteRenderer != null && spriteRenderer.sprite != clienteData.stageSprites[index])
-            spriteRenderer.sprite = clienteData.stageSprites[index];
     }
 
     private IEnumerator ShakeRoutine()
     {
         while (true)
         {
-            float rx = (Mathf.PerlinNoise(Time.time * shakeSpeed, 0f) - 0.5f) * 2f * shakeMagnitude;
-            float ry = (Mathf.PerlinNoise(0f, Time.time * shakeSpeed) - 0.5f) * 2f * shakeMagnitude;
+            float rx = (UnityEngine.Random.value - 0.5f) * 2f * shakeMagnitude;
+            float ry = (UnityEngine.Random.value - 0.5f) * 2f * shakeMagnitude;
             transform.position = _originPosition + new Vector3(rx, ry, 0f);
             yield return null;
         }
     }
-    #endregion
 
-    #region Speaking pulse (scale)
+    public void CancelProgressAndLeave(Transform exitPoint, Action onFinish = null)
+    {
+        if (_progressCoroutine != null) StopCoroutine(_progressCoroutine);
+        if (_shakeCoroutine != null) StopCoroutine(_shakeCoroutine);
+        StopSpeakingPulse();
+        if (progressView != null) progressView.Hide();
+        Leave(exitPoint, onFinish);
+    }
+
+    public void Leave(Transform exitPoint, Action onFinish = null)
+    {
+        StartCoroutine(LeaveCoroutine(exitPoint, onFinish));
+    }
+
+    private IEnumerator LeaveCoroutine(Transform exitPoint, Action onFinish)
+    {
+        while (true)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, exitPoint.position, moveSpeed * 1.2f * Time.deltaTime);
+            if (Vector3.Distance(transform.position, exitPoint.position) <= 0.02f)
+            {
+                transform.position = exitPoint.position;
+                OnLeftScene?.Invoke();
+                onFinish?.Invoke();
+                CleanupDialogSubscriptions();
+                Destroy(gameObject);
+                yield break;
+            }
+            yield return null;
+        }
+    }
+
+    // -------- SPEAKING PULSE --------
+
     public void StartSpeakingPulse()
     {
         if (_speakPulseCoroutine != null) return;
@@ -208,12 +225,9 @@ public class ClienteController : MonoBehaviour
 
     public void StopSpeakingPulse()
     {
-        if (_speakPulseCoroutine != null)
-        {
-            StopCoroutine(_speakPulseCoroutine);
-            _speakPulseCoroutine = null;
-            transform.localScale = _originalScale;
-        }
+        if (_speakPulseCoroutine != null) StopCoroutine(_speakPulseCoroutine);
+        _speakPulseCoroutine = null;
+        transform.localScale = _originalScale;
     }
 
     private IEnumerator SpeakPulseRoutine()
@@ -222,79 +236,42 @@ public class ClienteController : MonoBehaviour
         while (true)
         {
             t += Time.deltaTime * speakPulseFrequency * Mathf.PI * 2f;
-            float s = 1f + Mathf.Sin(t) * speakPulseAmplitude;
-            transform.localScale = _originalScale * s;
+            transform.localScale = _originalScale * (1f + Mathf.Sin(t) * speakPulseAmplitude);
             yield return null;
         }
     }
-    #endregion
 
-    #region Leave / cancel
-    // Llamado cuando el di�logo termina y queremos que se vaya: cancela progreso y shake, y luego se va
-    public void CancelProgressAndLeave(Transform exitPoint, Action onFinish = null)
+    // -------- HANDLERS DE EVENTOS DE DIÁLOGO (por cliente) --------
+
+    private void HandleTypingStartedLocal()
     {
-        if (_progressCoroutine != null)
-        {
-            StopCoroutine(_progressCoroutine);
-            _progressCoroutine = null;
-        }
-        if (_shakeCoroutine != null)
-        {
-            StopCoroutine(_shakeCoroutine);
-            _shakeCoroutine = null;
-            transform.position = _originPosition;
-        }
+        StartSpeakingPulse();
+    }
 
-        if (progressView != null) progressView.Hide();
-
-        // detener speaking pulse si estaba activo
+    private void HandleTypingEndedLocal()
+    {
         StopSpeakingPulse();
-
-        Leave(exitPoint, onFinish);
     }
 
-    public void Leave(Transform exitPoint, Action onFinish = null)
+    private void HandleDialogFinishedLocal()
     {
-        if (exitPoint == null)
-        {
-            Debug.LogWarning("[ClienteController] Leave: exitPoint null");
-            onFinish?.Invoke();
-            Destroy(gameObject);
-            return;
-        }
-
-        if (_progressCoroutine != null)
-        {
-            StopCoroutine(_progressCoroutine);
-            _progressCoroutine = null;
-        }
-        if (_shakeCoroutine != null)
-        {
-            StopCoroutine(_shakeCoroutine);
-            _shakeCoroutine = null;
-            transform.position = _originPosition;
-        }
-
-        if (progressView != null) progressView.Hide();
+        // Por si se queda algo, paramos el pulse y nos desuscribimos
         StopSpeakingPulse();
-        StartCoroutine(LeaveCoroutine(exitPoint, onFinish));
+        CleanupDialogSubscriptions();
     }
 
-    private IEnumerator LeaveCoroutine(Transform exitPoint, Action onFinish)
+    private void CleanupDialogSubscriptions()
     {
-        while (true)
+        if (_dialogController != null)
         {
-            transform.position = Vector3.MoveTowards(transform.position, exitPoint.position, (moveSpeed * 1.2f) * Time.deltaTime);
-            if (Vector3.Distance(transform.position, exitPoint.position) <= 0.02f)
-            {
-                transform.position = exitPoint.position;
-                OnLeftScene?.Invoke();
-                onFinish?.Invoke();
-                Destroy(gameObject);
-                yield break;
-            }
-            yield return null;
+            _dialogController.OnTypingStarted -= HandleTypingStartedLocal;
+            _dialogController.OnTypingEnded -= HandleTypingEndedLocal;
+            _dialogController.OnDialogFinished -= HandleDialogFinishedLocal;
         }
     }
-    #endregion
+
+    private void OnDestroy()
+    {
+        CleanupDialogSubscriptions();
+    }
 }

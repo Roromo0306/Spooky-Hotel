@@ -1,7 +1,6 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using UnityEngine;
-using TMPro;
 
 public class DialogController : MonoBehaviour
 {
@@ -18,10 +17,11 @@ public class DialogController : MonoBehaviour
     private Coroutine _typingCoroutine;
     private bool _isTyping = false;
 
-    public event Action<int> OnLineAdvance;         // índice de línea actual (cuando cambia línea completa)
-    public event Action OnDialogFinished;           // cuando el usuario presiona ENTER para terminar todo el diálogo
-    public event Action OnTypingStarted;            // se dispara al empezar a tipearse una línea
-    public event Action OnTypingEnded;              // se dispara cuando termina de tipearse la línea (completada)
+    // Eventos pÃºblicos
+    public event Action<int> OnLineAdvance;   // Ã­ndice de lÃ­nea actual
+    public event Action OnDialogFinished;     // cuando el diÃ¡logo termina
+    public event Action OnTypingStarted;      // cuando empieza a escribirse una lÃ­nea
+    public event Action OnTypingEnded;        // cuando termina de escribirse una lÃ­nea
 
     public void ShowDialog(string[] lines, string speakerName = null)
     {
@@ -35,11 +35,19 @@ public class DialogController : MonoBehaviour
         _currentLine = 0;
         _isShowing = true;
 
-        if (dialogView != null)
+        if (dialogView == null)
         {
-            dialogView.Show();
-            if (!string.IsNullOrEmpty(speakerName)) dialogView.SetName(speakerName);
+            dialogView = FindObjectOfType<DialogView>();
+            if (dialogView == null)
+            {
+                Debug.LogError("[DialogController] No DialogView found in scene.");
+                return;
+            }
         }
+
+        dialogView.Show();
+        if (!string.IsNullOrEmpty(speakerName))
+            dialogView.SetName(speakerName);
 
         StartTypingCurrentLine();
     }
@@ -48,22 +56,28 @@ public class DialogController : MonoBehaviour
     {
         if (!_isShowing) return;
 
-        // ESC
-        if (Input.GetKeyDown(KeyCode.Escape))
+        // ENTER: completar typing o avanzar / cerrar
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
         {
             if (_isTyping)
             {
-                // completar inmediatamente la línea actual
                 CompleteTypingImmediate();
             }
             else
             {
-                AdvanceLine();
+                if (_currentLine + 1 < _lines.Length)
+                {
+                    AdvanceLine();
+                }
+                else
+                {
+                    FinishDialog();
+                }
             }
         }
 
-        // ENTER
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        // ESC: cerrar todo el diÃ¡logo (skip)
+        if (Input.GetKeyDown(KeyCode.Escape))
         {
             FinishDialog();
         }
@@ -73,7 +87,6 @@ public class DialogController : MonoBehaviour
     {
         if (_currentLine < 0 || _currentLine >= _lines.Length) return;
 
-        // si ya hay typing coroutine, pararla
         if (_typingCoroutine != null)
         {
             StopCoroutine(_typingCoroutine);
@@ -89,23 +102,15 @@ public class DialogController : MonoBehaviour
         _isTyping = true;
         OnTypingStarted?.Invoke();
 
-        if (dialogView != null) dialogView.SetContent(string.Empty);
+        dialogView?.SetContent("");
 
-        if (charsPerSecond <= 0f) charsPerSecond = 40f;
-        float delayPerChar = 1f / charsPerSecond;
-        int len = fullLine.Length;
-        int i = 0;
-
-        while (i < len)
+        float delayPerChar = 1f / Mathf.Max(charsPerSecond, 1f);
+        for (int i = 0; i < fullLine.Length; i++)
         {
-            // Añadir siguiente carácter
-            string sub = fullLine.Substring(0, i + 1);
-            if (dialogView != null) dialogView.SetContent(sub);
-            i++;
+            dialogView?.SetContent(fullLine.Substring(0, i + 1));
             yield return new WaitForSeconds(delayPerChar);
         }
 
-        // terminado
         _isTyping = false;
         _typingCoroutine = null;
         OnTypingEnded?.Invoke();
@@ -115,7 +120,6 @@ public class DialogController : MonoBehaviour
     {
         if (!_isTyping) return;
 
-        // Detener coroutine y escribir la línea completa
         if (_typingCoroutine != null)
         {
             StopCoroutine(_typingCoroutine);
@@ -125,15 +129,15 @@ public class DialogController : MonoBehaviour
         _isTyping = false;
         if (_currentLine >= 0 && _currentLine < _lines.Length)
         {
-            if (dialogView != null) dialogView.SetContent(_lines[_currentLine]);
+            dialogView?.SetContent(_lines[_currentLine]);
         }
         OnTypingEnded?.Invoke();
     }
 
     private void AdvanceLine()
     {
-        // Si está en última línea, no hace nada (el ENTER se encarga de terminar)
         if (_currentLine < 0) return;
+
         if (_currentLine + 1 < _lines.Length)
         {
             _currentLine++;
@@ -142,26 +146,24 @@ public class DialogController : MonoBehaviour
         }
         else
         {
-            // no hay siguiente línea; dejar la última (o podríamos auto-finish)
-            Debug.Log("[DialogController] No hay más líneas que avanzar.");
+            Debug.Log("[DialogController] No hay mÃ¡s lÃ­neas.");
         }
     }
 
     private void FinishDialog()
     {
-        // terminar el diálogo completamente (se usará para que el cliente se vaya)
-        // detener typing
         if (_typingCoroutine != null)
         {
             StopCoroutine(_typingCoroutine);
             _typingCoroutine = null;
         }
+
         _isTyping = false;
+        _isShowing = false;
+        _currentLine = -1;
+        _lines = new string[0];
 
-        // ocultar UI
-        if (dialogView != null) dialogView.Hide();
-
-        // notificar
+        dialogView?.Hide();
         OnDialogFinished?.Invoke();
     }
 }

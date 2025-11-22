@@ -1,13 +1,12 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 
 public class DialogView : MonoBehaviour
 {
-    public GameObject panel;    // panel que contiene UI (activable)
-    public TextMeshProUGUI nameText;       // si quieres mostrar nombre
-    public TextMeshProUGUI contentText;    // línea actual
-    public TextMeshProUGUI hintText;       // "ESC para siguiente, ENTER para irse" opcional
+    public GameObject panel;                // panel que contiene UI (activable)
+    public TextMeshProUGUI nameText;        // nombre del hablante
+    public TextMeshProUGUI contentText;     // línea actual
+    public TextMeshProUGUI hintText;        // "ESC para siguiente, ENTER para irse" opcional
 
     public void Show()
     {
@@ -26,8 +25,6 @@ public class DialogView : MonoBehaviour
 
     public void SetName(string name)
     {
-     
-   if (nameText) nameText.text = name;
+        if (nameText) nameText.text = name;
     }
 }
-

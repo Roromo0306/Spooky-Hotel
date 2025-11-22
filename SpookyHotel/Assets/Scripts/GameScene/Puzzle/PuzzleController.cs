@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 using GameScene.Puzzle;
 
 public class PuzzleController : MonoBehaviour
@@ -13,7 +14,7 @@ public class PuzzleController : MonoBehaviour
     public MonoBehaviour puzzleServiceBehaviour;
     private IPuzzleService _puzzleService;
 
-    [Header("Prefabs")]
+    [Header("Prefabs (UI)")]
     public GameObject draggablePrefab;
 
     [Header("Config")]
@@ -24,19 +25,40 @@ public class PuzzleController : MonoBehaviour
     public PuzzleSolutionsSO solutionsSO;
 
     [Header("Destino de clientes (UI Panel en Canvas)")]
-    public RectTransform counterArea; // panel donde aparecen los clientes
+    public RectTransform counterArea; // panel donde aparecen los clientes (UI)
+
+    [Header("Mundo - cliente")]
+    public ClienteController clienteWorldPrefab;   // prefab del cliente en el mundo (con ClienteController)
+    public Transform worldSpawnPoint;              // donde instanciar nuevos clientes en el mundo
+    public Transform worldCounterTransform;        // target en mundo donde moverse (mostrador)
+
+    [Header("Salida del cliente (mundo)")]
+    public Transform clientExitPoint; // punto en mundo 2D donde el cliente se marcha
+
+    [Header("Behaviour")]
+    [Tooltip("Si está activo, al asignar también se hará SpawnNextCharacter() del UI")]
+    public bool autoSpawnNextUI = true;
+
+    [Tooltip("Si está activo, PuzzleController intentará spawnear el primer cliente del mundo automáticamente usando spawnOrder.")]
+    public bool autoSpawnFirstWorldClient = false;
+
+    [Header("Eventos")]
+    public UnityEvent onClientLeft; // conecta aquí tu sistema que 'spawnea' el siguiente cliente del mundo (opcional)
 
     private PuzzleModel _model;
     private List<DraggableCharacterView> _activeDraggables = new List<DraggableCharacterView>();
     private CellView[] _cells;
 
+    // UI draggable/icon que representa al cliente actual
     private DraggableCharacterView _currentDraggable = null;
     private int? _pendingPlacementIndex = null;
     private bool[] _currentAllowedIndices = null;
 
+    // Reference to the in-world client (behaviour)
+    private ClienteController _currentClient = null;
+
     private void Awake()
     {
-        // Configurar servicio de puzzle
         if (puzzleServiceBehaviour != null && puzzleServiceBehaviour is IPuzzleService)
             _puzzleService = puzzleServiceBehaviour as IPuzzleService;
         else
@@ -63,7 +85,22 @@ public class PuzzleController : MonoBehaviour
 
         view.Show();
 
+        // UI: crear primera ficha (consume spawnOrder[0])
         SpawnNextCharacter();
+
+        // Opcional: si quieres que PuzzleController cree el primer cliente mundo automáticamente (si no tienes un spawner),
+        // activa `autoSpawnFirstWorldClient` en el inspector. En ese caso intentará crear el cliente que corresponde al primer ClienteSO.
+        if (autoSpawnFirstWorldClient && clienteWorldPrefab != null && worldSpawnPoint != null && worldCounterTransform != null)
+        {
+            var so = PeekNextClienteSO(); // NO consume
+            if (so != null)
+            {
+                // consume it via TrySpawn (this will call RegisterCurrentClient)
+                TrySpawnNextWorldClientFromCurrentUI(so);
+                // since SpawnNextCharacter already incremented _spawnIndex, we should also consume here:
+                _spawnIndex = Mathf.Min(_spawnIndex + 1, spawnOrder.Length);
+            }
+        }
     }
 
     private void OnDestroy()
@@ -75,15 +112,42 @@ public class PuzzleController : MonoBehaviour
 
     private void Update()
     {
-        // Mostrar draggable cuando "llega" al mostrador (simulado)
+        // Mostrar draggable cuando "llega" al mostrador (si tu flujo lo requiere)
         if (_currentDraggable != null && !_currentDraggable.gameObject.activeSelf)
         {
             ShowDraggableAtCounter();
         }
     }
 
+    /// <summary>
+    /// Registra el ClienteController del mundo como "cliente actual".
+    /// Llama a este método desde tu spawner o cuando crees/asignes el cliente.
+    /// </summary>
+    public void RegisterCurrentClient(ClienteController client)
+    {
+        _currentClient = client;
+        if (_currentClient != null)
+        {
+            Debug.Log("[PuzzleController] Registered current client: " + client.name + " pos=" + client.transform.position);
+            _currentClient.OnLeftScene += HandleClientLeftScene;
+        }
+    }
+
+    private void HandleClientLeftScene()
+    {
+        if (_currentClient != null)
+            _currentClient.OnLeftScene -= HandleClientLeftScene;
+        _currentClient = null;
+    }
+
     private void SpawnNextCharacter()
     {
+        if (spawnOrder == null)
+        {
+            Debug.LogWarning("[PuzzleController] SpawnNextCharacter: spawnOrder es null.");
+            return;
+        }
+
         if (_spawnIndex >= spawnOrder.Length)
         {
             Debug.Log("[PuzzleController] No more characters to spawn.");
@@ -95,20 +159,35 @@ public class PuzzleController : MonoBehaviour
 
         var so = spawnOrder[_spawnIndex++];
 
-        // Instanciar prefab dentro del spawnArea en Canvas
+        // Instanciar prefab dentro del spawnArea en Canvas (usa view.spawnArea que es RectTransform)
         var go = Instantiate(draggablePrefab, view.spawnArea);
         go.transform.localScale = Vector3.one;
-        go.SetActive(false); // oculto hasta que llegue al mostrador
+        go.SetActive(false); // oculto hasta que llegue el cliente o muestres
 
         var drag = go.GetComponent<DraggableCharacterView>();
+        if (drag == null)
+        {
+            Debug.LogWarning("[PuzzleController] SpawnNextCharacter: DraggableCharacterView no encontrado en prefab.");
+            drag = go.AddComponent<DraggableCharacterView>();
+        }
         drag.data = so;
 
         // Asignar sprite e icono 120x120
-        var img = go.GetComponentInChildren<Image>();
+        var img = go.GetComponentInChildren<Image>(true);
         if (img != null && so.icon != null)
         {
             img.sprite = so.icon;
             img.rectTransform.sizeDelta = new Vector2(120, 120);
+            img.preserveAspect = true;
+            img.color = new Color(img.color.r, img.color.g, img.color.b, 1f);
+        }
+        else if (img == null)
+        {
+            Debug.LogWarning("[PuzzleController] SpawnNextCharacter: no Image encontrado en prefab.");
+        }
+        else
+        {
+            Debug.LogWarning($"[PuzzleController] SpawnNextCharacter: ClienteSO.icon es NULL para {so?.nombre}");
         }
 
         _activeDraggables.Add(drag);
@@ -154,36 +233,197 @@ public class PuzzleController : MonoBehaviour
         dragged.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
     }
 
-    private void OnAssignClicked()
+    /// <summary>
+    /// Helper: devuelve el siguiente ClienteSO en spawnOrder sin incrementar el índice.
+    /// </summary>
+    private ClienteSO PeekNextClienteSO()
     {
-        if (_currentDraggable == null || _pendingPlacementIndex == null) return;
+        if (spawnOrder == null) return null;
+        if (_spawnIndex >= spawnOrder.Length) return null;
+        return spawnOrder[_spawnIndex]; // NO incrementa
+    }
+
+    public void OnAssignClicked()
+    {
+        // quick auto-register fallback: si no hay cliente registrado intentamos encontrar uno en el counter (robusto para primer cliente)
+        if (_currentClient == null)
+        {
+            // try to auto-register a client close to the worldCounterTransform
+            if (worldCounterTransform != null)
+            {
+                var clients = FindObjectsOfType<ClienteController>();
+                ClienteController closest = null;
+                float bestDist = float.MaxValue;
+                foreach (var c in clients)
+                {
+                    float d = Vector3.Distance(c.transform.position, worldCounterTransform.position);
+                    if (d < bestDist)
+                    {
+                        bestDist = d;
+                        closest = c;
+                    }
+                }
+                if (closest != null && bestDist <= 0.6f) // threshold (tuneable)
+                {
+                    RegisterCurrentClient(closest);
+                    Debug.Log($"[PuzzleController] Auto-registered closest client at start of Assign: {closest.name} (dist {bestDist:F2})");
+                }
+            }
+        }
+
+        // guards
+        if (_currentDraggable == null || _pendingPlacementIndex == null)
+        {
+            Debug.Log("[PuzzleController] OnAssignClicked: nothing to assign.");
+            return;
+        }
 
         int placedIndex = _pendingPlacementIndex.Value;
         string reason;
 
-        if (_puzzleService.ValidatePlacement(_currentDraggable.data, placedIndex, _model, out reason))
+        if (!_puzzleService.ValidatePlacement(_currentDraggable.data, placedIndex, _model, out reason))
         {
-            _model.PlaceAt(placedIndex, _currentDraggable.data);
-
-            // Cliente se va
-            Destroy(_currentDraggable.gameObject);
-            _activeDraggables.Remove(_currentDraggable);
-
+            Debug.LogWarning($"(assign) Placement rejected for {_currentDraggable.data.nombre} at {placedIndex}: {reason}");
+            _currentDraggable.Revert();
             _pendingPlacementIndex = null;
-            _currentDraggable = null;
-            _currentAllowedIndices = null;
-            view.gridView.ClearAllowedMarks();
+            return;
+        }
 
-            SpawnNextCharacter();
+        // 1) registrar en el modelo (el icono UI ya está en la celda)
+        _model.PlaceAt(placedIndex, _currentDraggable.data);
 
-            if (CountAssigned() >= 5) StartCoroutine(EndPuzzleRoutine());
+        // 2) limpieza UI inmediata (la ficha queda visible en la celda)
+        _activeDraggables.Remove(_currentDraggable);
+        view.gridView.ClearAllowedMarks();
+
+        // 3) PREPARAR datos para spawn del siguiente cliente en mundo SIN depender de _currentDraggable.
+        ClienteSO nextSo = PeekNextClienteSO();
+        Debug.Log($"[PuzzleController] Next ClienteSO peek = {(nextSo != null ? nextSo.nombre : "NULL (end of list)")}");
+
+        // 4) reset pending & allowed (la UI actual ya está colocada)
+        _pendingPlacementIndex = null;
+        _currentAllowedIndices = null;
+
+        // 5) Guardamos localmente el cliente que tiene que irse para no perder la referencia
+        var clientToLeave = _currentClient;
+
+        if (clientToLeave != null)
+            Debug.Log($"[PuzzleController] Will ask client '{clientToLeave.name}' to leave to exitPoint={(clientExitPoint != null ? clientExitPoint.name : "NULL")}");
+        else
+            Debug.Log("[PuzzleController] No world client to ask to leave.");
+
+        // 6) Si hay cliente en mundo, pedir que se vaya. Usamos Leave() y callback.
+        if (clientToLeave != null)
+        {
+            clientToLeave.Leave(clientExitPoint, () =>
+            {
+                Debug.Log("[PuzzleController] clientToLeave callback: finished leaving.");
+
+                // invocar evento público para sistemas externos
+                onClientLeft?.Invoke();
+
+                // Si hay nextSo (peeked), lo usamos para instanciar el cliente mundo siguiente
+                if (nextSo != null)
+                {
+                    TrySpawnNextWorldClientFromCurrentUI(nextSo);
+                    // NO incrementamos manualmente _spawnIndex aquí: SpawnNextCharacter() ya lo hace cuando la UI se crea.
+                }
+                else
+                {
+                    // Intentamos spawnear sin nextSo (usará _currentDraggable if present)
+                    TrySpawnNextWorldClientFromCurrentUI(null);
+                }
+
+                // opcional: spawn la siguiente ficha UI (si quieres)
+                if (autoSpawnNextUI)
+                {
+                    SpawnNextCharacter();
+                }
+
+                // limpieza: si la referencia actual del controller apuntaba a este cliente, limpiar
+                if (_currentClient == clientToLeave)
+                {
+                    _currentClient.OnLeftScene -= HandleClientLeftScene;
+                    _currentClient = null;
+                }
+            });
         }
         else
         {
-            Debug.LogWarning($"Placement rejected for {_currentDraggable.data.nombre} at {placedIndex}: {reason}");
-            _currentDraggable.Revert();
-            _pendingPlacementIndex = null;
+            // No hay cliente en mundo: invocamos el evento y spawneamos el siguiente cliente si es posible.
+            onClientLeft?.Invoke();
+
+            if (nextSo != null)
+            {
+                TrySpawnNextWorldClientFromCurrentUI(nextSo);
+                // NO incrementamos manualmente _spawnIndex
+            }
+            else
+            {
+                TrySpawnNextWorldClientFromCurrentUI(null);
+            }
+
+            if (autoSpawnNextUI)
+            {
+                SpawnNextCharacter();
+            }
         }
+
+        // 7) comprobar fin de puzzle
+        if (CountAssigned() >= 5)
+            StartCoroutine(EndPuzzleRoutine());
+    }
+
+    /// <summary>
+    /// Si se pasa 'so' lo usa para crear el siguiente cliente mundo.
+    /// Si so == null, intenta usar _currentDraggable.data como antes.
+    /// </summary>
+    private void TrySpawnNextWorldClientFromCurrentUI(ClienteSO so)
+    {
+        if (clienteWorldPrefab == null || worldSpawnPoint == null || worldCounterTransform == null)
+        {
+            Debug.Log("[PuzzleController] TrySpawnNextWorldClientFromCurrentUI: falta prefab o puntos, no se creará cliente mundo.");
+            return;
+        }
+
+        ClienteSO useSo = so;
+        if (useSo == null)
+        {
+            if (_currentDraggable != null)
+            {
+                useSo = _currentDraggable.data;
+            }
+            else
+            {
+                Debug.Log("[PuzzleController] TrySpawnNextWorldClientFromCurrentUI: no hay draggable UI actual ni ClienteSO pasado.");
+                return;
+            }
+        }
+
+        if (useSo == null)
+        {
+            Debug.LogWarning("[PuzzleController] TrySpawnNextWorldClientFromCurrentUI: ClienteSO resultó null.");
+            return;
+        }
+
+        // Instanciamos cliente mundo
+        var go = Instantiate(clienteWorldPrefab.gameObject, worldSpawnPoint.position, Quaternion.identity);
+        var cliente = go.GetComponent<ClienteController>();
+        if (cliente == null)
+        {
+            Debug.LogError("[PuzzleController] TrySpawnNextWorldClientFromCurrentUI: prefab no contiene ClienteController.");
+            Destroy(go);
+            return;
+        }
+
+        // Inicializar y ordenar movimiento hacia mostrador en mundo
+        cliente.Initialize(useSo);
+        cliente.MoveTo(worldCounterTransform);
+
+        // Registrar como cliente actual para que OnAssign pueda hacerle Leave
+        RegisterCurrentClient(cliente);
+
+        Debug.Log($"[PuzzleController] Spawned next world client for {useSo.nombre}");
     }
 
     private int CountAssigned()
@@ -205,7 +445,4 @@ public class PuzzleController : MonoBehaviour
         if (fade != null) yield return fade.FadeInCoroutine();
     }
 }
-
-
-
 
