@@ -29,8 +29,8 @@ public class PuzzleController : MonoBehaviour
 
     [Header("Mundo - cliente")]
     public ClienteController clienteWorldPrefab;   // prefab del cliente en el mundo (con ClienteController)
-    public Transform worldSpawnPoint;              // donde instanciar nuevos clientes en el mundo
-    public Transform worldCounterTransform;        // target en mundo donde moverse (mostrador)
+    public Transform worldSpawnPoint;             // donde instanciar nuevos clientes en el mundo
+    public Transform worldCounterTransform;       // target en mundo donde moverse (mostrador)
 
     [Header("Salida del cliente (mundo)")]
     public Transform clientExitPoint; // punto en mundo 2D donde el cliente se marcha
@@ -44,6 +44,9 @@ public class PuzzleController : MonoBehaviour
 
     [Header("Eventos")]
     public UnityEvent onClientLeft; // conecta aquí tu sistema que 'spawnea' el siguiente cliente del mundo (opcional)
+
+    [Header("Fin de partida")]
+    public ResultScreenView resultScreenView; // pantalla de resultados (asignar en el Inspector)
 
     private PuzzleModel _model;
     private List<DraggableCharacterView> _activeDraggables = new List<DraggableCharacterView>();
@@ -88,16 +91,13 @@ public class PuzzleController : MonoBehaviour
         // UI: crear primera ficha (consume spawnOrder[0])
         SpawnNextCharacter();
 
-        // Opcional: si quieres que PuzzleController cree el primer cliente mundo automáticamente (si no tienes un spawner),
-        // activa `autoSpawnFirstWorldClient` en el inspector. En ese caso intentará crear el cliente que corresponde al primer ClienteSO.
+        // Opcional: auto spawnear primer cliente mundo usando spawnOrder
         if (autoSpawnFirstWorldClient && clienteWorldPrefab != null && worldSpawnPoint != null && worldCounterTransform != null)
         {
             var so = PeekNextClienteSO(); // NO consume
             if (so != null)
             {
-                // consume it via TrySpawn (this will call RegisterCurrentClient)
                 TrySpawnNextWorldClientFromCurrentUI(so);
-                // since SpawnNextCharacter already incremented _spawnIndex, we should also consume here:
                 _spawnIndex = Mathf.Min(_spawnIndex + 1, spawnOrder.Length);
             }
         }
@@ -245,10 +245,9 @@ public class PuzzleController : MonoBehaviour
 
     public void OnAssignClicked()
     {
-        // quick auto-register fallback: si no hay cliente registrado intentamos encontrar uno en el counter (robusto para primer cliente)
+        // quick auto-register fallback: si no hay cliente registrado intentamos encontrar uno en el counter
         if (_currentClient == null)
         {
-            // try to auto-register a client close to the worldCounterTransform
             if (worldCounterTransform != null)
             {
                 var clients = FindObjectsOfType<ClienteController>();
@@ -263,7 +262,7 @@ public class PuzzleController : MonoBehaviour
                         closest = c;
                     }
                 }
-                if (closest != null && bestDist <= 0.6f) // threshold (tuneable)
+                if (closest != null && bestDist <= 0.6f)
                 {
                     RegisterCurrentClient(closest);
                     Debug.Log($"[PuzzleController] Auto-registered closest client at start of Assign: {closest.name} (dist {bestDist:F2})");
@@ -319,28 +318,22 @@ public class PuzzleController : MonoBehaviour
             {
                 Debug.Log("[PuzzleController] clientToLeave callback: finished leaving.");
 
-                // invocar evento público para sistemas externos
                 onClientLeft?.Invoke();
 
-                // Si hay nextSo (peeked), lo usamos para instanciar el cliente mundo siguiente
                 if (nextSo != null)
                 {
                     TrySpawnNextWorldClientFromCurrentUI(nextSo);
-                    // NO incrementamos manualmente _spawnIndex aquí: SpawnNextCharacter() ya lo hace cuando la UI se crea.
                 }
                 else
                 {
-                    // Intentamos spawnear sin nextSo (usará _currentDraggable if present)
                     TrySpawnNextWorldClientFromCurrentUI(null);
                 }
 
-                // opcional: spawn la siguiente ficha UI (si quieres)
                 if (autoSpawnNextUI)
                 {
                     SpawnNextCharacter();
                 }
 
-                // limpieza: si la referencia actual del controller apuntaba a este cliente, limpiar
                 if (_currentClient == clientToLeave)
                 {
                     _currentClient.OnLeftScene -= HandleClientLeftScene;
@@ -350,13 +343,11 @@ public class PuzzleController : MonoBehaviour
         }
         else
         {
-            // No hay cliente en mundo: invocamos el evento y spawneamos el siguiente cliente si es posible.
             onClientLeft?.Invoke();
 
             if (nextSo != null)
             {
                 TrySpawnNextWorldClientFromCurrentUI(nextSo);
-                // NO incrementamos manualmente _spawnIndex
             }
             else
             {
@@ -369,7 +360,7 @@ public class PuzzleController : MonoBehaviour
             }
         }
 
-        // 7) comprobar fin de puzzle
+        // 7) comprobar fin de puzzle (ajusta 5 si tienes otro número de clientes)
         if (CountAssigned() >= 5)
             StartCoroutine(EndPuzzleRoutine());
     }
@@ -406,7 +397,6 @@ public class PuzzleController : MonoBehaviour
             return;
         }
 
-        // Instanciamos cliente mundo
         var go = Instantiate(clienteWorldPrefab.gameObject, worldSpawnPoint.position, Quaternion.identity);
         var cliente = go.GetComponent<ClienteController>();
         if (cliente == null)
@@ -416,11 +406,8 @@ public class PuzzleController : MonoBehaviour
             return;
         }
 
-        // Inicializar y ordenar movimiento hacia mostrador en mundo
         cliente.Initialize(useSo);
         cliente.MoveTo(worldCounterTransform);
-
-        // Registrar como cliente actual para que OnAssign pueda hacerle Leave
         RegisterCurrentClient(cliente);
 
         Debug.Log($"[PuzzleController] Spawned next world client for {useSo.nombre}");
@@ -437,12 +424,34 @@ public class PuzzleController : MonoBehaviour
     private IEnumerator EndPuzzleRoutine()
     {
         var fade = FindObjectOfType<FadeController>();
-        if (fade != null) yield return fade.FadeOutCoroutine();
+
+        // Fade out inicial (si tienes FadeController)
+        if (fade != null)
+            yield return fade.FadeOutCoroutine();
 
         var result = _puzzleService.EvaluateFinal(_model, solutionsSO);
         Debug.Log($"Clientes satisfechos {result.satisfied}/{result.totalPlaced}");
 
-        if (fade != null) yield return fade.FadeInCoroutine();
+        // ⏳ Esperamos 5 segundos antes de mostrar la pantalla de resultados
+        yield return new WaitForSeconds(5f);
+
+        // Opcional: fade in del resto de la escena si usas FadeController
+        if (fade != null)
+            yield return fade.FadeInCoroutine();
+
+        // Mostrar pantalla de resultados con fade in propio
+        if (resultScreenView != null)
+        {
+            string title = "Resultados de la partida";
+            string summary =
+                $"Clientes satisfechos: {result.satisfied} / {result.totalPlaced}\n\n" +
+                "¡Gracias por jugar!";
+
+            resultScreenView.ShowResultsWithFade(title, summary, 1f);
+        }
+        else
+        {
+            Debug.LogWarning("[PuzzleController] resultScreenView no asignado en el inspector, no puedo mostrar resultados.");
+        }
     }
 }
-

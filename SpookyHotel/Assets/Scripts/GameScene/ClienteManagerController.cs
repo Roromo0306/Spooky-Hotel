@@ -20,13 +20,26 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     [SerializeField] private DocumentListView documentListView;
     [SerializeField] private DocumentViewer documentViewer;
 
+    [Header("End Game UI")]
+    [SerializeField] private ResultScreenView resultScreenView;
+
+    [TextArea(3, 6)]
+    [SerializeField]
+    private string defaultSummaryText =
+        "¡Has terminado la jornada!\n\n(Después puedes sustituir este texto por estadísticas de la partida).";
+
+    // 👉 índice del cliente actual en el array
+    private int _currentClienteIndex = -1;
+
     protected override async Task OnStartController()
     {
+        // Si sigues usando el modelo para otras cosas, lo dejamos inicializado
         Model = new ClienteManagerModel();
         Model.SetQueue(clientesToSpawn);
         Model.StartProcessing();
         Model.Subscribe(OnModelChanged);
 
+        _currentClienteIndex = -1;
         SpawnNextClienteIfAny();
 
         await Task.CompletedTask;
@@ -45,17 +58,29 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     private void OnModelChanged()
     {
-        // Placeholder para UI ligada al modelo
+        // Placeholder
     }
 
     private void SpawnNextClienteIfAny()
     {
-        if (Model == null) return;
-        if (!Model.HasMore()) return;
+        _currentClienteIndex++;
 
-        Model.AdvanceIndex();
-        ClienteSO data = Model.GetCurrentCliente();
-        if (data == null) return;
+        // 👉 Si ya nos hemos pasado del último índice, mostramos resultados
+        if (_currentClienteIndex >= clientesToSpawn.Length)
+        {
+            Debug.Log("[ClienteManagerController] No quedan más clientes. Mostrando pantalla de resultados.");
+            ShowEndGameResults();
+            return;
+        }
+
+        ClienteSO data = clientesToSpawn[_currentClienteIndex];
+        if (data == null)
+        {
+            Debug.LogError("[ClienteManagerController] ClienteSO en índice " + _currentClienteIndex + " es null.");
+            // Aun así intentamos seguir al siguiente
+            ShowEndGameResults();
+            return;
+        }
 
         GameObject go = Instantiate(clientePrefab, spawnPoint.position, Quaternion.identity);
         _activeCliente = go.GetComponent<ClienteController>();
@@ -77,6 +102,28 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
         _activeCliente.OnLeftScene += HandleClienteLeft;
 
         _activeCliente.MoveTo(destinationPoint);
+    }
+
+    private void ShowEndGameResults()
+    {
+        if (resultScreenView == null)
+        {
+            Debug.LogError("[ClienteManagerController] resultScreenView no asignado en el inspector.");
+            return;
+        }
+
+        string title = "Resultados de la partida";
+        string summary = BuildResultsSummary();
+
+        Debug.Log("[ClienteManagerController] Llamando a resultScreenView.ShowResults");
+        resultScreenView.ShowResults(title, summary);
+    }
+
+    private string BuildResultsSummary()
+    {
+        // Aquí puedes usar info real del modelo si quieres.
+        // De momento devolvemos defaultSummaryText:
+        return defaultSummaryText;
     }
 
     private void HandleClienteReached()
@@ -118,13 +165,12 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
             Debug.LogWarning("[Manager] documentListView is null, cannot show documents.");
         }
 
-        // OJO: el diálogo lo muestra el ClienteController,
-        // aquí solo preparamos documentos y eventos.
+        // El diálogo lo lanza el ClienteController al llegar
     }
 
     private void HandleDialogLineAdvance(int newLineIndex)
     {
-        // Aquí podrías meter sonidos, animaciones, etc.
+        // Para sonidos, animaciones, etc.
     }
 
     private void HandleDialogFinishedByEnter()
@@ -151,8 +197,15 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
         {
             _activeCliente.CancelProgressAndLeave(exitPoint, () =>
             {
+                // Cuando este cliente se va, intentamos spawnear el siguiente.
+                // Si no hay más, se mostrará la pantalla de resultados.
                 SpawnNextClienteIfAny();
             });
+        }
+        else
+        {
+            // Por si acaso
+            SpawnNextClienteIfAny();
         }
     }
 
