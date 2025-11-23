@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ghost
   m_EditorClassIdentifier: 
   nombre: "Dr\xE1cula"
-  type: 0
+  type: 4
   dialogos:
   - hola soy un vampiro
   - bye bye
@@ -22,8 +22,8 @@ MonoBehaviour:
   - {fileID: 1374258088, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: 1374258088, guid: c06966272239977489abd4e2176ce211, type: 3}
   icon: {fileID: 343283242, guid: fe65b1b3e5eb9d142b3195729b608b4d, type: 3}
-  dni: {fileID: 11400000, guid: 34cb6acf7ec6ef145b5ef885425409ae, type: 2}
-  reserva: {fileID: 11400000, guid: 96feb9b29239b4648a4546710147b50d, type: 2}
+  dni: {fileID: 11400000, guid: 067a92950cc4d104c956034d19288b49, type: 2}
+  reserva: {fileID: 11400000, guid: 9cc73b8897c31b546898a7aae5b0f263, type: 2}
   cannotBeInSun: 0
   wantsToBeAlone: 1
   cannotBeAdjacentTo: 0000000001000000020000000300000004000000

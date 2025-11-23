@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Prefab item que representa una miniatura clicable de documento.
+/// Prefab item que representa una miniatura clicable de documento (UI).
 /// Debe colocarse dentro de un Canvas. El prefab raíz debe tener este componente,
 /// un Image (thumbnail) y un Button. No abre el viewer por sí mismo.
 /// </summary>
@@ -31,7 +31,6 @@ public class DocumentItemView : MonoBehaviour
             if (document != null && document.image != null)
             {
                 thumbnail.sprite = document.image;
-                // NO SetNativeSize() aquí para mantener el tamaño del layout del item.
                 thumbnail.enabled = true;
             }
             else
@@ -48,7 +47,6 @@ public class DocumentItemView : MonoBehaviour
         if (button != null)
         {
             button.onClick.RemoveAllListeners();
-            // Solo invocar OnClicked cuando el jugador haga click
             button.onClick.AddListener(() =>
             {
                 Debug.Log("[DocumentItemView] Button clicked for doc: " + (_document != null ? _document.title : "null"));

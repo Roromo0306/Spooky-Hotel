@@ -1,9 +1,9 @@
-using System;
+ï»¿using System;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Modal/visor simple que muestra una imagen (document) y un botón cerrar.
+/// Modal/visor simple que muestra una imagen (document) y un botÃ³n cerrar.
 /// rootPanel debe ser un panel dentro del Canvas (inicialmente desactivado).
 /// </summary>
 public class DocumentViewer : MonoBehaviour
@@ -17,7 +17,7 @@ public class DocumentViewer : MonoBehaviour
 
     private void Awake()
     {
-        // Aseguramos que el visor esté cerrado al inicio
+        // Aseguramos que el visor estÃ© cerrado al inicio
         if (rootPanel != null) rootPanel.SetActive(false);
 
         if (closeButton != null)
@@ -27,10 +27,6 @@ public class DocumentViewer : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Muestra la imagen contenida en DocumentSO.
-    /// incluye debug con stacktrace para saber quién llamó a Show.
-    /// </summary>
     public void Show(DocumentSO doc)
     {
         string caller = "unknown";
@@ -54,9 +50,7 @@ public class DocumentViewer : MonoBehaviour
         {
             if (doc.image != null)
             {
-                documentImage.sprite = doc.image;
-                // En viewer sí podemos usar SetNativeSize o ajustar con AspectRatioFitter
-                // pero cuidado con tamaños gigantes: se recomienda limitar RectTransform.
+                documentImage.sprite = doc.image;  // ðŸ‘ˆ imagen de detalle
                 documentImage.SetNativeSize();
                 documentImage.enabled = true;
             }

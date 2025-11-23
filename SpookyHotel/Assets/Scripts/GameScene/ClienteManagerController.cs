@@ -1,4 +1,5 @@
 ﻿using Infrastructure.MVC;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -17,8 +18,18 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     private ClienteController _activeCliente;
     public ProgressBarView sharedProgressView;
 
-    [SerializeField] private DocumentListView documentListView;
+    [Header("Documentos")]
     [SerializeField] private DocumentViewer documentViewer;
+
+    // (solo si usas la UI lista en otras partes)
+    [SerializeField] private DocumentListView documentListView;
+
+    [Header("World Documents (sobre la mesa)")]
+    [SerializeField] private DocumentWorldView documentWorldPrefab;
+    [SerializeField] private Transform dniSpawnPoint;
+    [SerializeField] private Transform reservaSpawnPoint;
+
+    private readonly List<DocumentWorldView> _spawnedWorldDocs = new List<DocumentWorldView>();
 
     [Header("End Game UI")]
     [SerializeField] private ResultScreenView resultScreenView;
@@ -28,12 +39,10 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
     private string defaultSummaryText =
         "¡Has terminado la jornada!\n\n(Después puedes sustituir este texto por estadísticas de la partida).";
 
-    // 👉 índice del cliente actual en el array
     private int _currentClienteIndex = -1;
 
     protected override async Task OnStartController()
     {
-        // Si sigues usando el modelo para otras cosas, lo dejamos inicializado
         Model = new ClienteManagerModel();
         Model.SetQueue(clientesToSpawn);
         Model.StartProcessing();
@@ -47,28 +56,28 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     protected override void OnModelChange()
     {
-        // No usamos por ahora
+        // No usado aún
     }
 
     protected override void OnDestroyController()
     {
         if (Model != null)
             Model.Unsubscribe(OnModelChanged);
+
+        ClearSpawnedWorldDocs();
     }
 
     private void OnModelChanged()
     {
-        // Placeholder
+        // Placeholder para expansión futura
     }
 
     private void SpawnNextClienteIfAny()
     {
         _currentClienteIndex++;
 
-        // 👉 Si ya nos hemos pasado del último índice, mostramos resultados
         if (_currentClienteIndex >= clientesToSpawn.Length)
         {
-            Debug.Log("[ClienteManagerController] No quedan más clientes. Mostrando pantalla de resultados.");
             ShowEndGameResults();
             return;
         }
@@ -76,8 +85,6 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
         ClienteSO data = clientesToSpawn[_currentClienteIndex];
         if (data == null)
         {
-            Debug.LogError("[ClienteManagerController] ClienteSO en índice " + _currentClienteIndex + " es null.");
-            // Aun así intentamos seguir al siguiente
             ShowEndGameResults();
             return;
         }
@@ -86,16 +93,12 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
         _activeCliente = go.GetComponent<ClienteController>();
         if (_activeCliente == null)
         {
-            Debug.LogError("[ClienteManagerController] clientePrefab no contiene ClienteController.");
             Destroy(go);
             return;
         }
 
         if (_activeCliente.progressView == null && sharedProgressView != null)
-        {
             _activeCliente.progressView = sharedProgressView;
-            Debug.Log("[Manager] Asigné sharedProgressView al cliente instanciado.");
-        }
 
         _activeCliente.Initialize(data);
         _activeCliente.OnReachedDestination += HandleClienteReached;
@@ -106,140 +109,71 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
 
     private void ShowEndGameResults()
     {
-        if (resultScreenView == null)
-        {
-            Debug.LogError("[ClienteManagerController] resultScreenView no asignado en el inspector.");
-            return;
-        }
+        if (resultScreenView == null) return;
 
         string title = "Resultados de la partida";
-        string summary = BuildResultsSummary();
+        string summary = defaultSummaryText;
 
-        Debug.Log("[ClienteManagerController] Llamando a resultScreenView.ShowResults");
         resultScreenView.ShowResults(title, summary);
-    }
-
-    private string BuildResultsSummary()
-    {
-        // Aquí puedes usar info real del modelo si quieres.
-        // De momento devolvemos defaultSummaryText:
-        return defaultSummaryText;
     }
 
     private void HandleClienteReached()
     {
         if (_activeCliente == null || _activeCliente.clienteData == null) return;
 
-        // Asegurar DialogController
         if (dialogController == null)
         {
             dialogController = FindObjectOfType<DialogController>();
-            if (dialogController == null)
-            {
-                Debug.LogError("[Manager] No se encontró DialogController en la escena.");
-                return;
-            }
+            if (dialogController == null) return;
         }
 
-        // Suscribir eventos necesarios (liberarse cuando termine)
         dialogController.OnLineAdvance += HandleDialogLineAdvance;
         dialogController.OnDialogFinished += HandleDialogFinishedByEnter;
 
-        // Mostrar documentos del cliente
         var cdata = _activeCliente.clienteData;
-        var docs = new DocumentSO[] { cdata.dni, cdata.reserva };
 
-        if (documentListView == null)
-        {
-            documentListView = FindObjectOfType<DocumentListView>();
-            Debug.LogWarning("[Manager] documentListView was null. FindObjectOfType -> " + (documentListView != null));
-        }
-
-        if (documentListView != null)
-        {
-            documentListView.ShowDocuments(docs);
-            documentListView.OnDocumentSelected += HandleDocumentSelected;
-        }
-        else
-        {
-            Debug.LogWarning("[Manager] documentListView is null, cannot show documents.");
-        }
-
-        // El diálogo lo lanza el ClienteController al llegar
+        // ✅ Spawnear DNI y Reserva sobre la mesa
+        SpawnWorldDocumentsForCliente(cdata.dni, cdata.reserva);
     }
 
-    private void HandleDialogLineAdvance(int newLineIndex)
+    private void SpawnWorldDocumentsForCliente(DocumentSO dni, DocumentSO reserva)
     {
-        // Para sonidos, animaciones, etc.
-    }
+        ClearSpawnedWorldDocs();
 
-    private void HandleDialogFinishedByEnter()
-    {
-        if (dialogController != null)
+        if (documentWorldPrefab == null) return;
+
+        // ✅ DNI
+        if (dni != null && dniSpawnPoint != null)
         {
-            dialogController.OnLineAdvance -= HandleDialogLineAdvance;
-            dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
+            var dniInstance = Instantiate(documentWorldPrefab, dniSpawnPoint.position, dniSpawnPoint.rotation);
+            dniInstance.name = $"DNI_{dni.title}";
+            dniInstance.Initialize(dni);
+            dniInstance.OnClicked += HandleDocumentClickedFromWorld;
+            _spawnedWorldDocs.Add(dniInstance);
         }
 
-        if (documentListView != null)
+        // ✅ Reserva
+        if (reserva != null && reservaSpawnPoint != null)
         {
-            documentListView.OnDocumentSelected -= HandleDocumentSelected;
-            documentListView.Hide();
-        }
-
-        if (documentViewer != null)
-        {
-            documentViewer.Close();
-            documentViewer.OnClosed -= HandleDocumentViewerClosed;
-        }
-
-        if (_activeCliente != null)
-        {
-            _activeCliente.CancelProgressAndLeave(exitPoint, () =>
-            {
-                // Cuando este cliente se va, intentamos spawnear el siguiente.
-                // Si no hay más, se mostrará la pantalla de resultados.
-                SpawnNextClienteIfAny();
-            });
-        }
-        else
-        {
-            // Por si acaso
-            SpawnNextClienteIfAny();
+            var reservaInstance = Instantiate(documentWorldPrefab, reservaSpawnPoint.position, reservaSpawnPoint.rotation);
+            reservaInstance.name = $"RESERVA_{reserva.title}";
+            reservaInstance.Initialize(reserva);
+            reservaInstance.OnClicked += HandleDocumentClickedFromWorld;
+            _spawnedWorldDocs.Add(reservaInstance);
         }
     }
 
-    private void HandleClienteLeft()
+    private void HandleDocumentClickedFromWorld(DocumentSO doc)
     {
-        if (dialogController != null)
-        {
-            dialogController.OnLineAdvance -= HandleDialogLineAdvance;
-            dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
-        }
-
-        if (documentListView != null)
-        {
-            documentListView.OnDocumentSelected -= HandleDocumentSelected;
-            documentListView.Hide();
-        }
-
-        if (documentViewer != null)
-        {
-            documentViewer.Close();
-            documentViewer.OnClosed -= HandleDocumentViewerClosed;
-        }
+        HandleDocumentSelected(doc);
     }
 
     private void HandleDocumentSelected(DocumentSO doc)
     {
-        Debug.Log("[Manager] Document selected -> " + (doc != null ? doc.title : "null"));
         if (doc == null) return;
 
         if (documentViewer == null)
-        {
             documentViewer = FindObjectOfType<DocumentViewer>();
-            Debug.LogWarning("[Manager] documentViewer was null. FindObjectOfType -> " + (documentViewer != null));
-        }
 
         if (documentViewer != null)
         {
@@ -255,37 +189,51 @@ public class ClienteManagerController : ControllerBase<ClienteManagerModel>
             documentViewer.OnClosed -= HandleDocumentViewerClosed;
     }
 
-    private void HandlePuzzleSolved()
+    private void HandleDialogLineAdvance(int newLineIndex)
     {
-        if (_activeCliente == null) return;
+        // para sonido o animaciones si quieres
+    }
 
-        var cdata = _activeCliente.clienteData;
-
-        if (dialogController == null)
+    private void HandleDialogFinishedByEnter()
+    {
+        if (dialogController != null)
         {
-            dialogController = FindObjectOfType<DialogController>();
-            if (dialogController == null)
-            {
-                Debug.LogError("[Manager] No se encontró DialogController para puzzle.");
-                return;
-            }
+            dialogController.OnLineAdvance -= HandleDialogLineAdvance;
+            dialogController.OnDialogFinished -= HandleDialogFinishedByEnter;
         }
 
-        dialogController.ShowDialog(cdata.dialogos, cdata.nombre);
+        ClearSpawnedWorldDocs();
+        if (documentListView != null) documentListView.Hide();
+        if (documentViewer != null) documentViewer.Close();
 
-        void OnFinalDialogFinished()
+        if (_activeCliente != null)
         {
-            dialogController.OnDialogFinished -= OnFinalDialogFinished;
-
-            if (_activeCliente != null)
+            _activeCliente.CancelProgressAndLeave(exitPoint, () =>
             {
-                _activeCliente.CancelProgressAndLeave(exitPoint, () =>
-                {
-                    SpawnNextClienteIfAny();
-                });
-            }
+                SpawnNextClienteIfAny();
+            });
         }
+        else
+        {
+            SpawnNextClienteIfAny();
+        }
+    }
 
-        dialogController.OnDialogFinished += OnFinalDialogFinished;
+    private void HandleClienteLeft()
+    {
+        ClearSpawnedWorldDocs();
+        if (documentViewer != null) documentViewer.Close();
+        if (documentListView != null) documentListView.Hide();
+    }
+
+    private void ClearSpawnedWorldDocs()
+    {
+        foreach (var wv in _spawnedWorldDocs)
+        {
+            if (wv == null) continue;
+            wv.OnClicked -= HandleDocumentClickedFromWorld;
+            Destroy(wv.gameObject);
+        }
+        _spawnedWorldDocs.Clear();
     }
 }

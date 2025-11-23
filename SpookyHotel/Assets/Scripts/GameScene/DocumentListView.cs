@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+
 /// <summary>
 /// Panel que muestra un conjunto de DocumentItemView instanciados dinámicamente.
 /// rootPanel: panel raíz (activar/desactivar).
-/// container: transform donde instanciar los items.
+/// container: transform donde instanciar items.
 /// itemPrefab: prefab de DocumentItemView (arrastrar prefab en el inspector).
 /// </summary>
 public class DocumentListView : MonoBehaviour
@@ -13,7 +14,7 @@ public class DocumentListView : MonoBehaviour
     [Header("References")]
     public GameObject rootPanel;          // panel que se activa/desactiva
     public Transform container;           // contenedor donde instanciar items
-    public DocumentItemView itemPrefab;   // prefab (DocumentItemView) — arrastrar el prefab
+    public DocumentItemView itemPrefab;   // prefab (DocumentItemView)
 
     private readonly List<DocumentItemView> _spawned = new List<DocumentItemView>();
 

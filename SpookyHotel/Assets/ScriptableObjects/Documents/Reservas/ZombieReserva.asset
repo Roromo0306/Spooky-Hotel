@@ -10,9 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 44e9617208dc1ec4bbd3a7bb1b2faf77, type: 3}
-  m_Name: VampiroReserva
+  m_Name: ZombieReserva
   m_EditorClassIdentifier: 
   title: Reserva
   description: quiero una habitacion coqueta
   type: 1
-  image: {fileID: 21300000, guid: ebe7038c0f8bcd34d969f311394fd83b, type: 3}
+  image: {fileID: 21300000, guid: c121cbb564d46c24eb4583533cdfe2dd, type: 3}
+  previewSprite: {fileID: 21300000, guid: 468aa65e6b264cd4a83ad7f3a88a87fc, type: 3}
+  previewScale: {x: 0.5, y: 0.5}

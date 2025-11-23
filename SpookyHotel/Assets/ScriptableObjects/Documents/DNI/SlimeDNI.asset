@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: SlimeDNI
   m_EditorClassIdentifier: 
   title: DNI
-  description: Este es el dni del vampiro
+  description: Este es el dni del slime
   type: 0
-  image: {fileID: 21300000, guid: 9da6caa5a5a81b54a83a648bc182132d, type: 3}
+  image: {fileID: 21300000, guid: c9255433b2337f940b2606a779a626cb, type: 3}
+  previewSprite: {fileID: 21300000, guid: 0c7bf1ec0932389419a33131aae8123b, type: 3}
+  previewScale: {x: 0.4, y: 0.4}
