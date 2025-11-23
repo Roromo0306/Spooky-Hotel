@@ -62,33 +62,45 @@ public class BookController : MonoBehaviour
         UnsubscribeModel();
     }
 
-    // Called when user clicks the book icon.
-    private void OnOpenButtonClicked()
+    // ------------ NUEVO MÉTODO PÚBLICO ------------
+
+    /// <summary>
+    /// Abre el libro por defecto (defaultBook), usando el servicio si existe.
+    /// Este método lo puede llamar tanto el botón UI como el objeto del mundo.
+    /// </summary>
+    public void OpenDefaultBook()
     {
         if (defaultBook == null)
         {
-            Debug.LogWarning("[BookController] No defaultBook assigned in inspector. Assign a BookDataSO or use OpenBookDirectly/bookService.");
+            Debug.LogWarning("[BookController] OpenDefaultBook llamado pero defaultBook es null. Asigna un BookDataSO en el inspector.");
             return;
         }
 
-        // If we have a service, ask it to open the book; otherwise open directly.
+        // Si tenemos servicio, se lo delegamos
         if (_bookService != null)
         {
-            // Ask the service to open the book (service should create its model)
             _bookService.OpenBook(defaultBook);
 
-            // Get model from service (may be null if service didn't create one)
+            // Obtener modelo del servicio
             _model = _bookService.GetModel();
 
-            // Subscribe & refresh
+            // Suscribir y refrescar vista
             SubscribeModel();
             RefreshViewFromModel();
         }
         else
         {
-            // fallback: open directly without service
+            // Fallback: abrir directamente sin servicio
             OpenBookDirectly(defaultBook);
         }
+    }
+
+    // ----------------------------------------------
+
+    // Antes el botón hacía todo. Ahora solo llama al método público.
+    private void OnOpenButtonClicked()
+    {
+        OpenDefaultBook();
     }
 
     // Convenience API if you want to open a specific BookDataSO directly from this controller
