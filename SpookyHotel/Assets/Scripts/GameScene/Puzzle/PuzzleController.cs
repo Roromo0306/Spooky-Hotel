@@ -60,6 +60,9 @@ public class PuzzleController : MonoBehaviour
     [Tooltip("Clip que sonará al cerrar el puzzle")]
     public AudioClip closeClip;
 
+    [Header("Dialogo")]
+    public DialogController dialogController;   // para mostrar diálogos tras asignar
+
     private PuzzleModel _model;
     private List<DraggableCharacterView> _activeDraggables = new List<DraggableCharacterView>();
     private CellView[] _cells;
@@ -99,9 +102,6 @@ public class PuzzleController : MonoBehaviour
         view.closeButton.onClick.RemoveAllListeners();
         view.closeButton.onClick.AddListener(OnCloseClicked);
 
-        // El puzzle no se muestra hasta que llamemos a OpenPuzzle()
-        // view.Show();
-
         // UI: crear primera ficha (consume spawnOrder[0])
         SpawnNextCharacter();
 
@@ -114,6 +114,12 @@ public class PuzzleController : MonoBehaviour
                 TrySpawnNextWorldClientFromCurrentUI(so);
                 _spawnIndex = Mathf.Min(_spawnIndex + 1, spawnOrder.Length);
             }
+        }
+
+        // Intentar autoconfigurar dialogController si no está asignado
+        if (dialogController == null)
+        {
+            dialogController = FindObjectOfType<DialogController>();
         }
     }
 
@@ -210,6 +216,8 @@ public class PuzzleController : MonoBehaviour
         _activeDraggables.Add(drag);
         _currentDraggable = drag;
         _pendingPlacementIndex = null;
+
+        // allowedIndices ahora solo se usan para highlight (no para bloquear)
         _currentAllowedIndices = _puzzleService.GetAllowedIndices(so, _model);
     }
 
@@ -238,6 +246,7 @@ public class PuzzleController : MonoBehaviour
             Debug.LogWarning("[PuzzleController] ShowDraggableAtCounter: no hay parent (draggableSpawnPoint ni counterArea).");
         }
 
+        // Solo para feedback visual
         view.gridView.SetAllowedIndices(_currentAllowedIndices);
     }
 
@@ -251,11 +260,18 @@ public class PuzzleController : MonoBehaviour
             return;
         }
 
-        if (_currentAllowedIndices == null || index < 0 || index >= _currentAllowedIndices.Length || !_currentAllowedIndices[index])
+        // Nuevo: permitir soltar en cualquier celda vacía dentro de rango
+        if (index < 0 || index >= PuzzleModel.CellCount)
         {
-            string reason;
-            _puzzleService.ValidatePlacement(dragged.data, index, _model, out reason);
-            Debug.LogWarning($"Placement not allowed for {dragged.data.nombre} at {index}: {reason}");
+            dragged.Revert();
+            _pendingPlacementIndex = null;
+            return;
+        }
+
+        if (_model.Cells[index] != null)
+        {
+            // Ya hay alguien asignado a esa celda → no permitimos sobrescribir
+            Debug.LogWarning($"HandleDrop: celda {index} ya ocupada.");
             dragged.Revert();
             _pendingPlacementIndex = null;
             return;
@@ -314,18 +330,23 @@ public class PuzzleController : MonoBehaviour
         }
 
         int placedIndex = _pendingPlacementIndex.Value;
-        string reason;
+        var clienteData = _currentDraggable.data;
 
-        if (!_puzzleService.ValidatePlacement(_currentDraggable.data, placedIndex, _model, out reason))
+        // Determinar si la casilla es correcta según el ScriptableObject del cliente
+        bool isCorrectPlacement = clienteData != null && clienteData.IsCorrectCell(placedIndex);
+
+        // Feedback de diálogos
+        if (isCorrectPlacement)
         {
-            Debug.LogWarning($"(assign) Placement rejected for {_currentDraggable.data.nombre} at {placedIndex}: {reason}");
-            _currentDraggable.Revert();
-            _pendingPlacementIndex = null;
-            return;
+            // sonido + diálogo de éxito
+            PlayAssignSound();
+            ShowSuccessDialogForCurrentClient();
         }
-
-        // ✅ Asignación válida → reproducir sonido de asignar
-        PlayAssignSound();
+        else
+        {
+            // diálogo de fallo
+            ShowFailDialogForCurrentClient();
+        }
 
         // 1) registrar en el modelo (el icono UI ya está en la celda)
         _model.PlaceAt(placedIndex, _currentDraggable.data);
@@ -403,7 +424,7 @@ public class PuzzleController : MonoBehaviour
         if (CountAssigned() >= 5)
             StartCoroutine(EndPuzzleRoutine());
 
-        // 8) 🔴 CERRAR PANEL TRAS ASIGNAR
+        // 8) CERRAR PANEL TRAS ASIGNAR
         if (view != null)
         {
             PlayCloseSound();   // reutilizamos el mismo sonido que cerrar
@@ -538,5 +559,86 @@ public class PuzzleController : MonoBehaviour
         {
             audioSource.PlayOneShot(closeClip);
         }
+    }
+
+    // ------------ DIÁLOGO TRAS ASIGNAR BIEN ------------
+
+    private void ShowSuccessDialogForCurrentClient()
+    {
+        if (dialogController == null)
+        {
+            dialogController = FindObjectOfType<DialogController>();
+            if (dialogController == null)
+            {
+                Debug.LogWarning("[PuzzleController] No DialogController found to show success dialog.");
+                return;
+            }
+        }
+
+        // Intentamos sacar el ClienteSO desde el cliente del mundo, y si no desde el draggable
+        ClienteSO data = null;
+
+        if (_currentClient != null && _currentClient.clienteData != null)
+        {
+            data = _currentClient.clienteData;
+        }
+        else if (_currentDraggable != null && _currentDraggable.data != null)
+        {
+            data = _currentDraggable.data;
+        }
+
+        if (data == null)
+        {
+            Debug.LogWarning("[PuzzleController] ShowSuccessDialogForCurrentClient: ClienteSO es null.");
+            return;
+        }
+
+        if (data.dialogosPuzzleExito == null || data.dialogosPuzzleExito.Length == 0)
+        {
+            // No tiene diálogos configurados, no pasa nada
+            return;
+        }
+
+        dialogController.ShowDialog(data.dialogosPuzzleExito, data.nombre);
+    }
+
+    // ------------ NUEVO: DIÁLOGO TRAS ASIGNAR MAL ------------
+
+    private void ShowFailDialogForCurrentClient()
+    {
+        if (dialogController == null)
+        {
+            dialogController = FindObjectOfType<DialogController>();
+            if (dialogController == null)
+            {
+                Debug.LogWarning("[PuzzleController] No DialogController found to show fail dialog.");
+                return;
+            }
+        }
+
+        ClienteSO data = null;
+
+        if (_currentClient != null && _currentClient.clienteData != null)
+        {
+            data = _currentClient.clienteData;
+        }
+        else if (_currentDraggable != null && _currentDraggable.data != null)
+        {
+            data = _currentDraggable.data;
+        }
+
+        if (data == null)
+        {
+            Debug.LogWarning("[PuzzleController] ShowFailDialogForCurrentClient: ClienteSO es null.");
+            return;
+        }
+
+        if (data.dialogosPuzzleFallo == null || data.dialogosPuzzleFallo.Length == 0)
+        {
+            // No tiene diálogos de fallo configurados, no pasa nada
+            return;
+        }
+
+        dialogController.ShowDialog(data.dialogosPuzzleFallo, data.nombre);
     }
 }

@@ -12,11 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 93d9f82514268e544aa807ccfbdefed6, type: 3}
   m_Name: Slime
   m_EditorClassIdentifier: 
-  nombre: Slime
+  nombre: Blob Bob
   type: 2
   dialogos:
   - glub glub glub
   - blob blob blob blob
+  dialogosPuzzleExito:
+  - ole que ole
+  dialogosPuzzleFallo:
+  - caca
   stageSprites:
   - {fileID: -1304825754, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: -1304825754, guid: c06966272239977489abd4e2176ce211, type: 3}
@@ -28,3 +32,4 @@ MonoBehaviour:
   wantsToBeAlone: 0
   cannotBeAdjacentTo: 00000000
   allowedCellIndices: 04000000
+  wrongCellIndices: 0000000001000000020000000300000005000000060000000700000008000000090000000a0000000b000000

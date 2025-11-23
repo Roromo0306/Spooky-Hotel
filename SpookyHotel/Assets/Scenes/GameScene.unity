@@ -5056,6 +5056,7 @@ MonoBehaviour:
   audioSource: {fileID: 1991754864}
   assignClip: {fileID: 8300000, guid: df8f76c1d3ac3ad4bb5eac8579dcf548, type: 3}
   closeClip: {fileID: 8300000, guid: fa394adc10ac9cc47a0e4b4f13d25429, type: 3}
+  dialogController: {fileID: 889050126}
 --- !u!4 &1991754863
 Transform:
   m_ObjectHideFlags: 0
