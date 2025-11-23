@@ -52,6 +52,12 @@ public class PuzzleController : MonoBehaviour
     [Header("Fin de partida")]
     public ResultScreenView resultScreenView; // pantalla de resultados (asignar en el Inspector)
 
+    [Header("Mensajes de resultado")]
+    [TextArea(1, 3)] public string msg0Aciertos = "Lo has hecho muy mal.";
+    [TextArea(1, 3)] public string msg1a2Aciertos = "Los clientes están enfadados.";
+    [TextArea(1, 3)] public string msg3a4Aciertos = "Cuida la atención al cliente.";
+    [TextArea(1, 3)] public string msg5plusAciertos = "¡Enhorabuena!";
+
     [Header("Audio")]
     [Tooltip("AudioSource que reproducirá los sonidos del puzzle (asignar/cerrar)")]
     public AudioSource audioSource;
@@ -514,7 +520,7 @@ public class PuzzleController : MonoBehaviour
         if (fade != null)
             yield return fade.FadeOutCoroutine();
 
-        // ✅ NUEVO: calculamos puntos en función de las casillas correctas de cada cliente
+        // ✅ calculamos puntos en función de las casillas correctas de cada cliente
         int satisfied;
         int totalPlaced;
         ComputeScore(out satisfied, out totalPlaced);
@@ -528,23 +534,23 @@ public class PuzzleController : MonoBehaviour
         if (fade != null)
             yield return fade.FadeInCoroutine();
 
-        // ✅ Mensaje según el número de aciertos
+        // ✅ Mensaje según el número de aciertos (editable en el inspector)
         string moodText;
         if (satisfied <= 0)
         {
-            moodText = "Lo has hecho muy mal.";
+            moodText = msg0Aciertos;
         }
         else if (satisfied <= 2)
         {
-            moodText = "Los clientes están enfadados.";
+            moodText = msg1a2Aciertos;
         }
         else if (satisfied <= 4)
         {
-            moodText = "Cuida la atención al cliente.";
+            moodText = msg3a4Aciertos;
         }
         else // 5 o más
         {
-            moodText = "¡Enhorabuena!";
+            moodText = msg5plusAciertos;
         }
 
         if (resultScreenView != null)
