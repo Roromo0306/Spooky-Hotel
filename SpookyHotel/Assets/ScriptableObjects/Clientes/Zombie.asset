@@ -25,6 +25,6 @@ MonoBehaviour:
   dni: {fileID: 11400000, guid: 3f52620f9814d7d4e8dabb686d5fc61d, type: 2}
   reserva: {fileID: 11400000, guid: 265642923d0a026478b20315cadf593d, type: 2}
   cannotBeInSun: 0
-  wantsToBeAlone: 1
+  wantsToBeAlone: 0
   cannotBeAdjacentTo: 01000000
   allowedCellIndices: 03000000060000000700000008000000

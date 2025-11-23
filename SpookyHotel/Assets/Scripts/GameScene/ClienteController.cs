@@ -74,8 +74,11 @@ public class ClienteController : MonoBehaviour
     public void MoveTo(Transform target)
     {
         if (target == null) return;
+
         _target = target;
         _isMoving = true;
+
+        // Solo detenemos corutinas de ESTE cliente
         StopAllCoroutines();
         StartCoroutine(MoveCoroutine());
     }
@@ -85,14 +88,29 @@ public class ClienteController : MonoBehaviour
         while (_isMoving && _target != null)
         {
             transform.position = Vector3.MoveTowards(transform.position, _target.position, moveSpeed * Time.deltaTime);
+
             if (Vector3.Distance(transform.position, _target.position) <= ArrivalEpsilon)
             {
                 transform.position = _target.position;
                 _isMoving = false;
                 _originPosition = transform.position;
 
-                // Notificar llegada al manager
+                Debug.Log("[ClienteController] Cliente llegó a DESTINO -> " +
+                          (clienteData != null ? clienteData.nombre : "sin nombre"));
+
+                // 1) Evento normal
                 OnReachedDestination?.Invoke();
+
+                // 2) Avisar explícitamente al manager de que este cliente ha llegado
+                var manager = FindObjectOfType<ClienteManagerController>();
+                if (manager != null)
+                {
+                    manager.NotifyClienteReachedFromClient(this);
+                }
+                else
+                {
+                    Debug.LogWarning("[ClienteController] No se encontró ClienteManagerController al llegar al destino.");
+                }
 
                 // Auto-registrar al PuzzleController
                 var pc = FindObjectOfType<PuzzleController>();
@@ -101,11 +119,12 @@ public class ClienteController : MonoBehaviour
                 // Empezar barra de progreso
                 StartProgress();
 
-                // MOSTRAR DIÁLOGO de este cliente y enganchar el pulse
+                // MOSTRAR DIÁLOGO
                 TryShowDialogForThisClient();
 
                 yield break;
             }
+
             yield return null;
         }
     }
@@ -127,7 +146,6 @@ public class ClienteController : MonoBehaviour
             return;
         }
 
-        // Suscribimos ESTE cliente a los eventos de typing del diálogo
         _dialogController.OnTypingStarted += HandleTypingStartedLocal;
         _dialogController.OnTypingEnded += HandleTypingEndedLocal;
         _dialogController.OnDialogFinished += HandleDialogFinishedLocal;
@@ -205,8 +223,27 @@ public class ClienteController : MonoBehaviour
             if (Vector3.Distance(transform.position, exitPoint.position) <= 0.02f)
             {
                 transform.position = exitPoint.position;
+
+                Debug.Log("[ClienteController] Cliente llegó al EXIT -> " +
+                          (clienteData != null ? clienteData.nombre : "sin nombre"));
+
+                // 1) evento normal
                 OnLeftScene?.Invoke();
+
+                // 2) avisar al manager para que limpie documentos SÍ O SÍ
+                var manager = FindObjectOfType<ClienteManagerController>();
+                if (manager != null)
+                {
+                    manager.OnClienteReallyLeft(this);
+                }
+                else
+                {
+                    Debug.LogWarning("[ClienteController] No se encontró ClienteManagerController al salir.");
+                }
+
+                // callback del manager (para spawnear siguiente)
                 onFinish?.Invoke();
+
                 CleanupDialogSubscriptions();
                 Destroy(gameObject);
                 yield break;
@@ -255,7 +292,6 @@ public class ClienteController : MonoBehaviour
 
     private void HandleDialogFinishedLocal()
     {
-        // Por si se queda algo, paramos el pulse y nos desuscribimos
         StopSpeakingPulse();
         CleanupDialogSubscriptions();
     }

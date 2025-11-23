@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: HombreLobo
   m_EditorClassIdentifier: 
   nombre: Wolverine
-  type: 0
+  type: 1
   dialogos:
   - hola soy un hombre lobo
   - hola soy un hombre lobo

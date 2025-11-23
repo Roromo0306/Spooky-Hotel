@@ -13,14 +13,8 @@ public class DocumentWorldView : MonoBehaviour
 
     private DocumentSO _document;
 
-    /// <summary>
-    /// Doc asociado a este objeto del mundo.
-    /// </summary>
     public DocumentSO Document => _document;
 
-    /// <summary>
-    /// Se dispara cuando el jugador hace clic en este documento del mundo.
-    /// </summary>
     public event Action<DocumentSO> OnClicked;
 
     private void Reset()
@@ -29,16 +23,13 @@ public class DocumentWorldView : MonoBehaviour
             previewRenderer = GetComponent<SpriteRenderer>();
     }
 
-    /// <summary>
-    /// Inicializa el objeto del mundo con el DocumentSO correspondiente.
-    /// </summary>
     public void Initialize(DocumentSO doc)
     {
         _document = doc;
 
         Debug.Log($"[DocumentWorldView] Initialize {name} con doc: {(doc != null ? doc.title : "null")}");
 
-        // 1) Sprite de preview sobre la mesa
+        // Sprite de preview
         if (previewRenderer != null)
         {
             Sprite spriteToUse = null;
@@ -46,9 +37,9 @@ public class DocumentWorldView : MonoBehaviour
             if (doc != null)
             {
                 if (doc.previewSprite != null)
-                    spriteToUse = doc.previewSprite;  // sprite específico de preview
+                    spriteToUse = doc.previewSprite;
                 else
-                    spriteToUse = doc.image;          // fallback: imagen de detalle
+                    spriteToUse = doc.image;
             }
 
             if (spriteToUse != null)
@@ -67,7 +58,7 @@ public class DocumentWorldView : MonoBehaviour
             Debug.LogWarning("[DocumentWorldView] previewRenderer no asignado en " + name);
         }
 
-        // 2) Escala en mesa
+        // Escala
         Vector2 scaleToUse = defaultScale;
         if (doc != null && doc.previewScale != Vector2.zero)
             scaleToUse = doc.previewScale;
@@ -75,9 +66,7 @@ public class DocumentWorldView : MonoBehaviour
         transform.localScale = new Vector3(scaleToUse.x, scaleToUse.y, 1f);
     }
 
-    /// <summary>
-    /// Llamado desde el sistema de clicks 2D cuando se detecta un raycast sobre este objeto.
-    /// </summary>
+    // Si usas raycast externo (WorldClick2DHandler), llama a esto:
     public void InvokeClick()
     {
         Debug.Log($"[DocumentWorldView] InvokeClick en {name}. Doc: {(_document != null ? _document.title : "null")}");
