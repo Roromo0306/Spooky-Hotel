@@ -27,6 +27,10 @@ public class PuzzleController : MonoBehaviour
     [Header("Destino de clientes (UI Panel en Canvas)")]
     public RectTransform counterArea; // panel donde aparecen los clientes (UI)
 
+    [Header("Punto donde aparece el draggable (UI)")]
+    [Tooltip("Empty (RectTransform) en el Canvas donde quieres que aparezca el icono draggable")]
+    public RectTransform draggableSpawnPoint;
+
     [Header("Mundo - cliente")]
     public ClienteController clienteWorldPrefab;   // prefab del cliente en el mundo (con ClienteController)
     public Transform worldSpawnPoint;             // donde instanciar nuevos clientes en el mundo
@@ -105,7 +109,10 @@ public class PuzzleController : MonoBehaviour
 
     private void OnDestroy()
     {
-        foreach (var c in _cells) c.OnDropped -= HandleDrop;
+        if (_cells != null)
+        {
+            foreach (var c in _cells) c.OnDropped -= HandleDrop;
+        }
         view.assignButton.onClick.RemoveAllListeners();
         view.closeButton.onClick.RemoveAllListeners();
     }
@@ -159,10 +166,10 @@ public class PuzzleController : MonoBehaviour
 
         var so = spawnOrder[_spawnIndex++];
 
-        // Instanciar prefab dentro del spawnArea en Canvas (usa view.spawnArea que es RectTransform)
+        // Instanciar prefab dentro del spawnArea (luego lo moveremos en ShowDraggableAtCounter)
         var go = Instantiate(draggablePrefab, view.spawnArea);
         go.transform.localScale = Vector3.one;
-        go.SetActive(false); // oculto hasta que llegue el cliente o muestres
+        go.SetActive(false); // oculto hasta que lo mostremos en el punto deseado
 
         var drag = go.GetComponent<DraggableCharacterView>();
         if (drag == null)
@@ -196,13 +203,30 @@ public class PuzzleController : MonoBehaviour
         _currentAllowedIndices = _puzzleService.GetAllowedIndices(so, _model);
     }
 
+    /// <summary>
+    /// Muestra el draggable en el punto específico del Canvas (empty RectTransform).
+    /// </summary>
     private void ShowDraggableAtCounter()
     {
         if (_currentDraggable == null) return;
 
         _currentDraggable.gameObject.SetActive(true);
-        _currentDraggable.transform.SetParent(counterArea, false);
-        _currentDraggable.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+
+        // 👉 Si se ha asignado draggableSpawnPoint, usamos ese.
+        // Si no, usamos counterArea como fallback.
+        RectTransform parent = draggableSpawnPoint != null ? draggableSpawnPoint : counterArea;
+
+        if (parent != null)
+        {
+            _currentDraggable.transform.SetParent(parent, false);
+            var rt = _currentDraggable.GetComponent<RectTransform>();
+            if (rt != null)
+                rt.anchoredPosition = Vector2.zero;
+        }
+        else
+        {
+            Debug.LogWarning("[PuzzleController] ShowDraggableAtCounter: no hay parent (draggableSpawnPoint ni counterArea).");
+        }
 
         view.gridView.SetAllowedIndices(_currentAllowedIndices);
     }
