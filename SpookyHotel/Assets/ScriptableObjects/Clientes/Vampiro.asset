@@ -15,12 +15,15 @@ MonoBehaviour:
   nombre: Vlad Pyre
   type: 0
   dialogos:
-  - hola soy un vampiro
-  - bye bye
+  - "\u201CDo you have rooms away from the morning light?\u201D"
+  - "\u201CThe higher the floor, the better it is for my\u2026 resting habits.\u201D"
+  - "\u201CI\u2019d rather not hear any howling nearby, if possible.\u201D"
+  - "\u201CAnd nothing sticky close to me. It ruins the wardrobe.\u201D"
+  - "\u201CAs long as sunlight doesn\u2019t reach me, everything will be\u2026 perfect.\u201D"
   dialogosPuzzleExito:
-  - perfectoo
+  - "\u201CDark, high, and quiet\u2026 impeccable.\u201D"
   dialogosPuzzleFallo:
-  - esto no me gusta
+  - "\u201CThe light touches me here. Do you want me to burn?\u201D"
   stageSprites:
   - {fileID: -150978818, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: -150978818, guid: c06966272239977489abd4e2176ce211, type: 3}

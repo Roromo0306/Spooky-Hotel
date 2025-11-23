@@ -94,8 +94,8 @@ MonoBehaviour:
   background: {fileID: 8395857776465084130}
   contentParent: {fileID: 2580090650885249011}
   normalColor: {r: 0.09411765, g: 0.05490196, b: 0.25882354, a: 1}
-  allowedColor: {r: 0.6, g: 1, b: 0.6, a: 1}
-  forbiddenColor: {r: 1, g: 0.6, b: 0.6, a: 1}
+  allowedColor: {r: 0.09411765, g: 0.05490196, b: 0.25882354, a: 1}
+  forbiddenColor: {r: 0.09411765, g: 0.05490196, b: 0.25882354, a: 1}
 --- !u!114 &7631703805684461596
 MonoBehaviour:
   m_ObjectHideFlags: 0

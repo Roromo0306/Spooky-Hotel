@@ -15,12 +15,14 @@ MonoBehaviour:
   nombre: Zack Bite
   type: 3
   dialogos:
-  - grrrrr grrrrrr grrrrr
-  - aaaaa grrrr
+  - "\u201CI don\u2019t make noise\u2026 but some say I carry\u2026 aroma.\u201D"
+  - "\u201CDon\u2019t need height, just space for\u2026 bits.\u201D"
+  - "\u201CSome guests avoid me. No idea why\u2026\u201D"
+  - "\u201CAs long as I\u2019m not near sensitive noses\u2026 I\u2019m fine.\u201D"
   dialogosPuzzleExito:
-  - yeah
+  - "\u201CNo complaints here\u2026 good.\u201D"
   dialogosPuzzleFallo:
-  - mierdon on fire
+  - "\u201CIf someone pukes, that\u2019s on you.\u201D"
   stageSprites:
   - {fileID: 2040827629, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: 2040827629, guid: c06966272239977489abd4e2176ce211, type: 3}

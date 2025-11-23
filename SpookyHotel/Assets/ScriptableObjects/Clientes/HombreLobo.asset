@@ -15,12 +15,15 @@ MonoBehaviour:
   nombre: Jack Wolfgang
   type: 1
   dialogos:
-  - hola soy un hombre lobo
-  - hola soy un hombre lobo
+  - "\u201CNothing against anyone, but some guests don\u2019t enjoy my\u2026 nightly
+    energy.\u201D"
+  - "\u201CAnyone with a strong smell nearby? Makes me uneasy.\u201D"
+  - "\u201CI\u2019ll try not to howl\u2026 too much.\u201D"
+  - "\u201CHigher floors mean fewer complaints\u2026 I think.\u201D"
   dialogosPuzzleExito:
-  - yippiee
+  - "\u201CPerfect! No one will hear a thing tonight.\u201D"
   dialogosPuzzleFallo:
-  - eeee no
+  - "\u201CSomeone\u2019s going to complain, and it won\u2019t be me.\u201D"
   stageSprites:
   - {fileID: 1902582594, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: 1902582594, guid: c06966272239977489abd4e2176ce211, type: 3}

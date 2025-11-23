@@ -15,12 +15,15 @@ MonoBehaviour:
   nombre: Spookiest Gogoo
   type: 4
   dialogos:
-  - hola soy un vampiro
-  - bye bye
+  - "\u201CAs long as no one\u2019s near\u2026 I\u2019m comfortable.\u201D"
+  - "\u201CI take no space, but don\u2019t want\u2026 company.\u201D"
+  - "\u201CSilence is my only preference.\u201D"
+  - "\u201CA room without neighbors\u2026 would be perfect.\u201D"
+  - "\u201CSolitude feels\u2026 warm. Oddly.\u201D"
   dialogosPuzzleExito:
-  - oleeee
+  - "\u201CSilence\u2026 exactly what I wanted.\u201D"
   dialogosPuzzleFallo:
-  - bleh
+  - "\u201CToo many presences\u2026 I can feel them.\u201D"
   stageSprites:
   - {fileID: 1374258088, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: 1374258088, guid: c06966272239977489abd4e2176ce211, type: 3}

@@ -15,12 +15,14 @@ MonoBehaviour:
   nombre: Blob Bob
   type: 2
   dialogos:
-  - glub glub glub
-  - blob blob blob blob
+  - "\u201CGot rooms where leaving a trail isn\u2019t a problem?\u201D"
+  - "\u201CHigher floors make me feel\u2026 slippery.\u201D"
+  - "\u201CSome guests complain\u2026 say I splash.\u201D"
+  - "\u201CThose with capes keep staring at me.\u201D"
   dialogosPuzzleExito:
-  - ole que ole
+  - "\u201CAh! So much space to slide.\u201D"
   dialogosPuzzleFallo:
-  - caca
+  - "\u201CSomeone here hates texture? Too bad.\u201D"
   stageSprites:
   - {fileID: -1304825754, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: -1304825754, guid: c06966272239977489abd4e2176ce211, type: 3}
