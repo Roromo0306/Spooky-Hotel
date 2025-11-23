@@ -394,6 +394,7 @@ MonoBehaviour:
   playAction: {fileID: 11400000, guid: b3581eeccb6b6574689c8466d6aa90c4, type: 2}
   creditsAction: {fileID: 11400000, guid: fb29cfc2d0e886f40a2f8eec5e1d3d35, type: 2}
   quitAction: {fileID: 11400000, guid: 3d1a230c0c75ccf47bad669b33df4dac, type: 2}
+  returnAction: {fileID: 0}
   audioSource: {fileID: 1323191774}
   clip: {fileID: 8300000, guid: fa394adc10ac9cc47a0e4b4f13d25429, type: 3}
 --- !u!4 &714439751
@@ -1354,6 +1355,7 @@ MonoBehaviour:
   playButton: {fileID: 1042187086}
   creditsButton: {fileID: 969084981}
   quitButton: {fileID: 754351659}
+  returnButton: {fileID: 0}
 --- !u!4 &1204914815
 Transform:
   m_ObjectHideFlags: 0
@@ -1830,6 +1832,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   audioSource: {fileID: 2035965959}
+  sceneToResumeMusic: MainMenu
 --- !u!82 &2035965959
 AudioSource:
   m_ObjectHideFlags: 0
