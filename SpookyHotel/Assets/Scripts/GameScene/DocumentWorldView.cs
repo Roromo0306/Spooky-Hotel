@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 [RequireComponent(typeof(SpriteRenderer))]
-[RequireComponent(typeof(Collider2D))] // Usa Collider si tu juego es 3D
+[RequireComponent(typeof(Collider2D))]
 public class DocumentWorldView : MonoBehaviour
 {
     [Header("References")]
@@ -13,6 +13,14 @@ public class DocumentWorldView : MonoBehaviour
 
     private DocumentSO _document;
 
+    /// <summary>
+    /// Doc asociado a este objeto del mundo.
+    /// </summary>
+    public DocumentSO Document => _document;
+
+    /// <summary>
+    /// Se dispara cuando el jugador hace clic en este documento del mundo.
+    /// </summary>
     public event Action<DocumentSO> OnClicked;
 
     private void Reset()
@@ -21,13 +29,16 @@ public class DocumentWorldView : MonoBehaviour
             previewRenderer = GetComponent<SpriteRenderer>();
     }
 
+    /// <summary>
+    /// Inicializa el objeto del mundo con el DocumentSO correspondiente.
+    /// </summary>
     public void Initialize(DocumentSO doc)
     {
         _document = doc;
 
         Debug.Log($"[DocumentWorldView] Initialize {name} con doc: {(doc != null ? doc.title : "null")}");
 
-        // 1) Sprite sobre la mesa
+        // 1) Sprite de preview sobre la mesa
         if (previewRenderer != null)
         {
             Sprite spriteToUse = null;
@@ -35,9 +46,9 @@ public class DocumentWorldView : MonoBehaviour
             if (doc != null)
             {
                 if (doc.previewSprite != null)
-                    spriteToUse = doc.previewSprite;
+                    spriteToUse = doc.previewSprite;  // sprite específico de preview
                 else
-                    spriteToUse = doc.image;
+                    spriteToUse = doc.image;          // fallback: imagen de detalle
             }
 
             if (spriteToUse != null)
@@ -56,7 +67,7 @@ public class DocumentWorldView : MonoBehaviour
             Debug.LogWarning("[DocumentWorldView] previewRenderer no asignado en " + name);
         }
 
-        // 2) Escala
+        // 2) Escala en mesa
         Vector2 scaleToUse = defaultScale;
         if (doc != null && doc.previewScale != Vector2.zero)
             scaleToUse = doc.previewScale;
@@ -64,18 +75,17 @@ public class DocumentWorldView : MonoBehaviour
         transform.localScale = new Vector3(scaleToUse.x, scaleToUse.y, 1f);
     }
 
-    private void OnMouseDown()
+    /// <summary>
+    /// Llamado desde el sistema de clicks 2D cuando se detecta un raycast sobre este objeto.
+    /// </summary>
+    public void InvokeClick()
     {
-        Debug.Log($"[DocumentWorldView] OnMouseDown en {name}. Doc: {(_document != null ? _document.title : "null")}");
+        Debug.Log($"[DocumentWorldView] InvokeClick en {name}. Doc: {(_document != null ? _document.title : "null")}");
 
         if (OnClicked != null)
-        {
             OnClicked.Invoke(_document);
-        }
         else
-        {
-            Debug.LogWarning("[DocumentWorldView] No hay listeners en OnClicked.");
-        }
+            Debug.LogWarning("[DocumentWorldView] InvokeClick llamado pero no hay listeners en OnClicked.");
     }
 
     private void OnDestroy()
