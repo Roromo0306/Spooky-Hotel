@@ -13,6 +13,11 @@ public class DocumentViewer : MonoBehaviour
     public Image documentImage;
     public Button closeButton;
 
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip openClip;
+    public AudioClip closeClip;
+
     public event Action OnClosed;
 
     private void Awake()
@@ -27,18 +32,12 @@ public class DocumentViewer : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Muestra la imagen contenida en DocumentSO.
+    /// </summary>
     public void Show(DocumentSO doc)
     {
-        string caller = "unknown";
-        try
-        {
-            var st = new System.Diagnostics.StackTrace();
-            var f = st.GetFrame(1);
-            caller = f != null ? f.GetMethod().Name : "null";
-        }
-        catch { }
-
-        Debug.Log("[DocumentViewer] Show called for doc: " + (doc != null ? doc.title : "null") + " calledFrom: " + caller);
+        Debug.Log("[DocumentViewer] Show called for doc: " + (doc != null ? doc.title : "null"));
 
         if (doc == null)
         {
@@ -50,7 +49,7 @@ public class DocumentViewer : MonoBehaviour
         {
             if (doc.image != null)
             {
-                documentImage.sprite = doc.image;  // 👈 imagen de detalle
+                documentImage.sprite = doc.image;
                 documentImage.SetNativeSize();
                 documentImage.enabled = true;
             }
@@ -60,18 +59,24 @@ public class DocumentViewer : MonoBehaviour
                 documentImage.enabled = false;
             }
         }
-        else
-        {
-            Debug.LogWarning("[DocumentViewer] documentImage reference is null.");
-        }
 
         if (rootPanel != null) rootPanel.SetActive(true);
+
+        // ✅ reproducimos sonido al abrir
+        if (audioSource != null && openClip != null)
+            audioSource.PlayOneShot(openClip);
     }
 
     public void Close()
     {
         Debug.Log("[DocumentViewer] Close called.");
+
         if (rootPanel != null) rootPanel.SetActive(false);
+
+        // ✅ reproducimos sonido al cerrar
+        if (audioSource != null && closeClip != null)
+            audioSource.PlayOneShot(closeClip);
+
         OnClosed?.Invoke();
     }
 

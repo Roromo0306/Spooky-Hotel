@@ -21,7 +21,7 @@ MonoBehaviour:
   - {fileID: 2040827629, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: 2040827629, guid: c06966272239977489abd4e2176ce211, type: 3}
   - {fileID: 2040827629, guid: c06966272239977489abd4e2176ce211, type: 3}
-  icon: {fileID: 912361649, guid: fe65b1b3e5eb9d142b3195729b608b4d, type: 3}
+  icon: {fileID: 21300000, guid: 1319e0f2dbddec04fb09f4ba93a48b60, type: 3}
   dni: {fileID: 11400000, guid: 3f52620f9814d7d4e8dabb686d5fc61d, type: 2}
   reserva: {fileID: 11400000, guid: 265642923d0a026478b20315cadf593d, type: 2}
   cannotBeInSun: 0
