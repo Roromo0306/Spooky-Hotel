@@ -18,7 +18,7 @@ public class ClienteController : MonoBehaviour
 
     [Header("Progreso")]
     public ProgressBarView progressView;
-    [SerializeField][Range(0.1f, 120f)] private float progressSecondsToFull = 80f;
+    [SerializeField][Range(0.1f, 120f)] private float progressSecondsToFull = 140f;
     [Range(0.5f, 1f)] public float shakeStartPercent = 0.8f;
     public float shakeMagnitude = 0.08f;
     public float shakeSpeed = 10f;
@@ -51,7 +51,7 @@ public class ClienteController : MonoBehaviour
 
     private void Reset()
     {
-        progressSecondsToFull = 30f;
+        progressSecondsToFull = 140f;
     }
 
     public void Initialize(ClienteSO data)
