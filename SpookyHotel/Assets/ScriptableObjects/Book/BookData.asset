@@ -15,5 +15,6 @@ MonoBehaviour:
   title: Book of Monsters
   cover: {fileID: 0}
   pages:
-  - {fileID: 21300000, guid: cdd154fdaa590a34fae35274bd970c00, type: 3}
-  - {fileID: 21300000, guid: ae3a78dd8e8443c4a949f8e97df451f1, type: 3}
+  - {fileID: 21300000, guid: 908b5c5fabf7d5e4aa1086a96a7b6fea, type: 3}
+  - {fileID: 21300000, guid: 5b45df2e27691b249b1174f721729ce5, type: 3}
+  - {fileID: 21300000, guid: 1d82e11228b44f34f8b87e876428cce5, type: 3}
