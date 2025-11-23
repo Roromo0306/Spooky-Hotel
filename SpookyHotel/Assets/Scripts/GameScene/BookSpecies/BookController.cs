@@ -20,6 +20,14 @@ public class BookController : MonoBehaviour
     [Header("Optional: assign a BookDataSO to open when the icon is clicked")]
     public BookDataSO defaultBook;
 
+    [Header("Audio")]
+    [Tooltip("AudioSource que reproducirá los sonidos del libro")]
+    public AudioSource audioSource;
+    [Tooltip("Clip que sonará cada vez que se cambie de página")]
+    public AudioClip pageTurnClip;
+    [Tooltip("Clip que sonará al cerrar el libro")]
+    public AudioClip closeClip;
+
     private BookModel _model;
 
     private void Awake()
@@ -44,9 +52,23 @@ public class BookController : MonoBehaviour
         // Wire view buttons
         if (view != null)
         {
-            if (view.prevButton != null) { view.prevButton.onClick.RemoveAllListeners(); view.prevButton.onClick.AddListener(OnPrev); }
-            if (view.nextButton != null) { view.nextButton.onClick.RemoveAllListeners(); view.nextButton.onClick.AddListener(OnNext); }
-            if (view.closeButton != null) { view.closeButton.onClick.RemoveAllListeners(); view.closeButton.onClick.AddListener(OnClose); }
+            if (view.prevButton != null)
+            {
+                view.prevButton.onClick.RemoveAllListeners();
+                view.prevButton.onClick.AddListener(OnPrev);
+            }
+
+            if (view.nextButton != null)
+            {
+                view.nextButton.onClick.RemoveAllListeners();
+                view.nextButton.onClick.AddListener(OnNext);
+            }
+
+            if (view.closeButton != null)
+            {
+                view.closeButton.onClick.RemoveAllListeners();
+                view.closeButton.onClick.AddListener(OnClose);
+            }
         }
     }
 
@@ -62,7 +84,7 @@ public class BookController : MonoBehaviour
         UnsubscribeModel();
     }
 
-    // ------------ NUEVO MÉTODO PÚBLICO ------------
+    // ------------ API PÚBLICA PARA ABRIR EL LIBRO ------------
 
     /// <summary>
     /// Abre el libro por defecto (defaultBook), usando el servicio si existe.
@@ -94,8 +116,6 @@ public class BookController : MonoBehaviour
             OpenBookDirectly(defaultBook);
         }
     }
-
-    // ----------------------------------------------
 
     // Antes el botón hacía todo. Ahora solo llama al método público.
     private void OnOpenButtonClicked()
@@ -150,20 +170,56 @@ public class BookController : MonoBehaviour
         view.SetNavEnabled(_model.CurrentIndex > 0, _model.CurrentIndex < _model.PageCount - 1);
     }
 
+    // ------------ NAVEGACIÓN + SONIDO ------------
+
     private void OnNext()
     {
-        if (_model != null) _model.Next();
+        if (_model == null) return;
+
+        // Solo avanzamos si no estamos ya en la última página
+        if (_model.CurrentIndex < _model.PageCount - 1)
+        {
+            _model.Next();
+            PlayPageTurnSound();
+        }
     }
 
     private void OnPrev()
     {
-        if (_model != null) _model.Prev();
+        if (_model == null) return;
+
+        // Solo retrocedemos si no estamos ya en la primera página
+        if (_model.CurrentIndex > 0)
+        {
+            _model.Prev();
+            PlayPageTurnSound();
+        }
+    }
+
+    private void PlayPageTurnSound()
+    {
+        if (audioSource != null && pageTurnClip != null)
+        {
+            audioSource.PlayOneShot(pageTurnClip);
+        }
+    }
+
+    private void PlayCloseSound()
+    {
+        if (audioSource != null && closeClip != null)
+        {
+            audioSource.PlayOneShot(closeClip);
+        }
     }
 
     private void OnClose()
     {
+        // sonido al cerrar
+        PlayCloseSound();
+
         if (_model != null) _model.SetOpen(false);
         UnsubscribeModel();
         if (view != null) view.Hide();
     }
 }
+

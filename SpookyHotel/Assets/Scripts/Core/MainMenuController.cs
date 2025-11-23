@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Infrastructure.MVC;
 using UnityEngine;
 
@@ -11,7 +11,7 @@ public class MainMenuController : ControllerBase<MainMenuModel>
     [SerializeField] private ButtonActionSO playAction;
     [SerializeField] private ButtonActionSO creditsAction;
     [SerializeField] private ButtonActionSO quitAction;
-
+    [SerializeField] private ButtonActionSO returnAction; // ✅ NUEVO
 
     public AudioSource audioSource;
     public AudioClip clip;
@@ -43,6 +43,13 @@ public class MainMenuController : ControllerBase<MainMenuModel>
                     await Task.Delay(400);
                     Model.Select(MainMenuModel.MenuSelection.Quit);
                     quitAction?.Execute();
+                },
+                onReturn: async () => 
+                {
+                    audioSource.PlayOneShot(clip);
+                    await Task.Delay(400);
+                    Model.Select(MainMenuModel.MenuSelection.ReturnToMenu);
+                    returnAction?.Execute();
                 }
             );
         }
@@ -54,9 +61,7 @@ public class MainMenuController : ControllerBase<MainMenuModel>
     {
         if (Model == null || view == null) return;
         view.SetInteractable(Model.IsInteractable);
-        // se puede usar Model.Selected para efectos visuales, etc.
     }
 
     protected override void OnDestroyController() { }
 }
-

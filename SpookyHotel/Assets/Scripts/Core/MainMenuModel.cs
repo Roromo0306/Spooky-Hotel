@@ -1,4 +1,4 @@
-using Infrastructure.MVC;
+﻿using Infrastructure.MVC;
 public class MainMenuModel : ModelBase
 {
     public enum MenuSelection
@@ -6,7 +6,8 @@ public class MainMenuModel : ModelBase
         None,
         Play,
         Credits,
-        Quit
+        Quit,
+        ReturnToMenu   
     }
 
     private MenuSelection _selected = MenuSelection.None;
@@ -28,4 +29,5 @@ public class MainMenuModel : ModelBase
         RaiseChange();
     }
 }
+
 

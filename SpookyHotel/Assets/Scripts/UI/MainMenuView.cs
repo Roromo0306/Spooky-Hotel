@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System;
 
@@ -8,8 +8,9 @@ public class MainMenuView : MonoBehaviour
     public Button playButton;
     public Button creditsButton;
     public Button quitButton;
+    public Button returnButton; // ✅ NUEVO
 
-    public void Bind(Action onPlay, Action onCredits, Action onQuit)
+    public void Bind(Action onPlay, Action onCredits, Action onQuit, Action onReturn)
     {
         if (playButton != null)
         {
@@ -28,6 +29,12 @@ public class MainMenuView : MonoBehaviour
             quitButton.onClick.RemoveAllListeners();
             quitButton.onClick.AddListener(() => onQuit?.Invoke());
         }
+
+        if (returnButton != null) 
+        {
+            returnButton.onClick.RemoveAllListeners();
+            returnButton.onClick.AddListener(() => onReturn?.Invoke());
+        }
     }
 
     public void SetInteractable(bool state)
@@ -35,6 +42,6 @@ public class MainMenuView : MonoBehaviour
         if (playButton) playButton.interactable = state;
         if (creditsButton) creditsButton.interactable = state;
         if (quitButton) quitButton.interactable = state;
+        if (returnButton) returnButton.interactable = state; // ✅ NUEVO
     }
 }
-

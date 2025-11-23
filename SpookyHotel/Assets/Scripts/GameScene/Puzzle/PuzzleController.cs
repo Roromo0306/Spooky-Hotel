@@ -52,6 +52,14 @@ public class PuzzleController : MonoBehaviour
     [Header("Fin de partida")]
     public ResultScreenView resultScreenView; // pantalla de resultados (asignar en el Inspector)
 
+    [Header("Audio")]
+    [Tooltip("AudioSource que reproducirá los sonidos del puzzle (asignar/cerrar)")]
+    public AudioSource audioSource;
+    [Tooltip("Clip que sonará cuando se asigne correctamente un cliente")]
+    public AudioClip assignClip;
+    [Tooltip("Clip que sonará al cerrar el puzzle")]
+    public AudioClip closeClip;
+
     private PuzzleModel _model;
     private List<DraggableCharacterView> _activeDraggables = new List<DraggableCharacterView>();
     private CellView[] _cells;
@@ -87,10 +95,12 @@ public class PuzzleController : MonoBehaviour
         // Botones
         view.assignButton.onClick.RemoveAllListeners();
         view.assignButton.onClick.AddListener(OnAssignClicked);
-        view.closeButton.onClick.RemoveAllListeners();
-        view.closeButton.onClick.AddListener(() => view.Hide());
 
-        view.Show();
+        view.closeButton.onClick.RemoveAllListeners();
+        view.closeButton.onClick.AddListener(OnCloseClicked);
+
+        // El puzzle no se muestra hasta que llamemos a OpenPuzzle()
+        // view.Show();
 
         // UI: crear primera ficha (consume spawnOrder[0])
         SpawnNextCharacter();
@@ -267,6 +277,8 @@ public class PuzzleController : MonoBehaviour
         return spawnOrder[_spawnIndex]; // NO incrementa
     }
 
+    // ---------------- ASIGNAR ----------------
+
     public void OnAssignClicked()
     {
         // quick auto-register fallback: si no hay cliente registrado intentamos encontrar uno en el counter
@@ -311,6 +323,9 @@ public class PuzzleController : MonoBehaviour
             _pendingPlacementIndex = null;
             return;
         }
+
+        // ✅ Asignación válida → reproducir sonido de asignar
+        PlayAssignSound();
 
         // 1) registrar en el modelo (el icono UI ya está en la celda)
         _model.PlaceAt(placedIndex, _currentDraggable.data);
@@ -387,12 +402,17 @@ public class PuzzleController : MonoBehaviour
         // 7) comprobar fin de puzzle (ajusta 5 si tienes otro número de clientes)
         if (CountAssigned() >= 5)
             StartCoroutine(EndPuzzleRoutine());
+
+        // 8) 🔴 CERRAR PANEL TRAS ASIGNAR
+        if (view != null)
+        {
+            PlayCloseSound();   // reutilizamos el mismo sonido que cerrar
+            view.Hide();
+        }
     }
 
-    /// <summary>
-    /// Si se pasa 'so' lo usa para crear el siguiente cliente mundo.
-    /// Si so == null, intenta usar _currentDraggable.data como antes.
-    /// </summary>
+    // ---------------- SPAWN CLIENTE MUNDO ----------------
+
     private void TrySpawnNextWorldClientFromCurrentUI(ClienteSO so)
     {
         if (clienteWorldPrefab == null || worldSpawnPoint == null || worldCounterTransform == null)
@@ -476,6 +496,47 @@ public class PuzzleController : MonoBehaviour
         else
         {
             Debug.LogWarning("[PuzzleController] resultScreenView no asignado en el inspector, no puedo mostrar resultados.");
+        }
+    }
+
+    // ------------ NUEVO: abrir puzzle desde fuera ------------
+
+    /// <summary>
+    /// Muestra el panel del puzzle. Llamar desde un objeto del mundo (por ejemplo, al hacer click).
+    /// </summary>
+    public void OpenPuzzle()
+    {
+        if (view == null)
+        {
+            Debug.LogError("[PuzzleController] OpenPuzzle llamado pero view es null.");
+            return;
+        }
+
+        view.Show();
+    }
+
+    // ------------ CERRAR + AUDIO ------------
+
+    private void OnCloseClicked()
+    {
+        PlayCloseSound();
+        if (view != null)
+            view.Hide();
+    }
+
+    private void PlayAssignSound()
+    {
+        if (audioSource != null && assignClip != null)
+        {
+            audioSource.PlayOneShot(assignClip);
+        }
+    }
+
+    private void PlayCloseSound()
+    {
+        if (audioSource != null && closeClip != null)
+        {
+            audioSource.PlayOneShot(closeClip);
         }
     }
 }
