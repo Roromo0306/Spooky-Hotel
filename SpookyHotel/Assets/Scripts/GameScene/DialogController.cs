@@ -178,4 +178,21 @@ public class DialogController : MonoBehaviour
         dialogView?.Hide();
         OnDialogFinished?.Invoke();
     }
+
+    public void ForceCloseDialog()
+    {
+        if (_typingCoroutine != null)
+        {
+            StopCoroutine(_typingCoroutine);
+            _typingCoroutine = null;
+        }
+
+        _isTyping = false;
+        _isShowing = false;
+        _currentLine = -1;
+        _lines = new string[0];
+
+        dialogView?.Hide();
+        OnDialogFinished?.Invoke();
+    }
 }
