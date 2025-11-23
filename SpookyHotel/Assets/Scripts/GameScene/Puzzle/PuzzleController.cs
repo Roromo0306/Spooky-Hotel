@@ -260,7 +260,7 @@ public class PuzzleController : MonoBehaviour
             return;
         }
 
-        // Nuevo: permitir soltar en cualquier celda vacía dentro de rango
+        // Permitir soltar en cualquier celda vacía dentro de rango
         if (index < 0 || index >= PuzzleModel.CellCount)
         {
             dragged.Revert();
@@ -486,6 +486,26 @@ public class PuzzleController : MonoBehaviour
         return count;
     }
 
+    // ------------------- CÁLCULO DE PUNTOS -------------------
+
+    private void ComputeScore(out int satisfied, out int totalPlaced)
+    {
+        satisfied = 0;
+        totalPlaced = 0;
+
+        for (int i = 0; i < PuzzleModel.CellCount; i++)
+        {
+            var c = _model.Cells[i];
+            if (c == null) continue;
+
+            totalPlaced++;
+
+            // suma punto solo si está en una de sus casillas correctas
+            if (c.IsCorrectCell(i))
+                satisfied++;
+        }
+    }
+
     private IEnumerator EndPuzzleRoutine()
     {
         var fade = FindObjectOfType<FadeController>();
@@ -494,8 +514,12 @@ public class PuzzleController : MonoBehaviour
         if (fade != null)
             yield return fade.FadeOutCoroutine();
 
-        var result = _puzzleService.EvaluateFinal(_model, solutionsSO);
-        Debug.Log($"Clientes satisfechos {result.satisfied}/{result.totalPlaced}");
+        // ✅ NUEVO: calculamos puntos en función de las casillas correctas de cada cliente
+        int satisfied;
+        int totalPlaced;
+        ComputeScore(out satisfied, out totalPlaced);
+
+        Debug.Log($"[PuzzleController] FIN PUZZLE -> Clientes satisfechos {satisfied} / {totalPlaced}");
 
         // ⏳ Esperamos 5 segundos antes de mostrar la pantalla de resultados
         yield return new WaitForSeconds(5f);
@@ -504,13 +528,31 @@ public class PuzzleController : MonoBehaviour
         if (fade != null)
             yield return fade.FadeInCoroutine();
 
-        // Mostrar pantalla de resultados con fade in propio
+        // ✅ Mensaje según el número de aciertos
+        string moodText;
+        if (satisfied <= 0)
+        {
+            moodText = "Lo has hecho muy mal.";
+        }
+        else if (satisfied <= 2)
+        {
+            moodText = "Los clientes están enfadados.";
+        }
+        else if (satisfied <= 4)
+        {
+            moodText = "Cuida la atención al cliente.";
+        }
+        else // 5 o más
+        {
+            moodText = "¡Enhorabuena!";
+        }
+
         if (resultScreenView != null)
         {
             string title = "Resultados de la partida";
             string summary =
-                $"Clientes satisfechos: {result.satisfied} / {result.totalPlaced}\n\n" +
-                "¡Gracias por jugar!";
+                $"Clientes satisfechos: {satisfied} / {totalPlaced}\n\n" +
+                moodText;
 
             resultScreenView.ShowResultsWithFade(title, summary, 1f);
         }
@@ -602,7 +644,7 @@ public class PuzzleController : MonoBehaviour
         dialogController.ShowDialog(data.dialogosPuzzleExito, data.nombre);
     }
 
-    // ------------ NUEVO: DIÁLOGO TRAS ASIGNAR MAL ------------
+    // ------------ DIÁLOGO TRAS ASIGNAR MAL ------------
 
     private void ShowFailDialogForCurrentClient()
     {

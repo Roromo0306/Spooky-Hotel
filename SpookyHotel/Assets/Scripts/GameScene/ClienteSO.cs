@@ -11,11 +11,11 @@ public class ClienteSO : ScriptableObject
 
     [Header("Diálogos tras asignar bien en el puzzle")]
     [TextArea(2, 6)]
-    public string[] dialogosPuzzleExito;   // líneas que dirá cuando lo colocas bien
+    public string[] dialogosPuzzleExito;
 
     [Header("Diálogos tras asignar mal en el puzzle")]
     [TextArea(2, 6)]
-    public string[] dialogosPuzzleFallo;   // ✅ NUEVO: líneas cuando lo colocas mal
+    public string[] dialogosPuzzleFallo;
 
     [Header("Visual")]
     public Sprite[] stageSprites;
@@ -32,28 +32,20 @@ public class ClienteSO : ScriptableObject
 
     [Header("Optional: designer-specified CORRECT cells (indices 0..11)")]
     [Tooltip("Casillas correctas para este cliente. Las usaremos para saber si está bien colocado.")]
-    public int[] allowedCellIndices;   // lo que ya usabas como casillas correctas
+    public int[] allowedCellIndices;
 
     [Header("Optional: designer-specified WRONG cells (indices 0..11)")]
     [Tooltip("Opcional: casillas marcadamente incorrectas (solo referencia de diseño, no bloquea nada).")]
-    public int[] wrongCellIndices;     // ✅ NUEVO
+    public int[] wrongCellIndices;
 
-    // Helper: facilidad para comprobar si tiene configuración explícita
     public bool HasAllowedCells => allowedCellIndices != null && allowedCellIndices.Length > 0;
 
-    /// <summary>
-    /// Devuelve true si este índice está en la lista de casillas correctas.
-    /// </summary>
     public bool IsCorrectCell(int index)
     {
         if (!HasAllowedCells) return false;
         return System.Array.IndexOf(allowedCellIndices, index) >= 0;
     }
 
-    /// <summary>
-    /// Devuelve true si este índice está marcado explícitamente como casilla incorrecta.
-    /// (Opcional, puedes usarlo más adelante para lógica más fina si quieres.)
-    /// </summary>
     public bool IsExplicitWrongCell(int index)
     {
         if (wrongCellIndices == null || wrongCellIndices.Length == 0) return false;
