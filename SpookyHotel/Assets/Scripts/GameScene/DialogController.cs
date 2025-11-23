@@ -10,12 +10,18 @@ public class DialogController : MonoBehaviour
     [Tooltip("Caracteres por segundo (velocidad de 'typewriter').")]
     public float charsPerSecond = 40f;
 
+    [Header("Typing Sound")]
+    public AudioSource typingAudioSource;
+    public AudioClip typingClip;
+
+
     private string[] _lines = new string[0];
     private int _currentLine = -1;
     private bool _isShowing = false;
 
     private Coroutine _typingCoroutine;
     private bool _isTyping = false;
+    private float _lastTypeSoundTime = 0f;
 
     // Eventos públicos
     public event Action<int> OnLineAdvance;   // índice de línea actual
@@ -92,6 +98,12 @@ public class DialogController : MonoBehaviour
             StopCoroutine(_typingCoroutine);
             _typingCoroutine = null;
             _isTyping = false;
+        }
+
+        // ✅ REPRODUCIR SONIDO SOLO UNA VEZ POR LÍNEA
+        if (typingAudioSource != null && typingClip != null)
+        {
+            typingAudioSource.PlayOneShot(typingClip);
         }
 
         _typingCoroutine = StartCoroutine(TypeLineRoutine(_lines[_currentLine]));
