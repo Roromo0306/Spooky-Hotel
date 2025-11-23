@@ -18,9 +18,9 @@ MonoBehaviour:
   - hola soy un hombre lobo
   - hola soy un hombre lobo
   stageSprites:
-  - {fileID: 21300000, guid: 0e5734f85fbb1074ab71c5cde86307d7, type: 3}
-  - {fileID: 21300000, guid: 0e5734f85fbb1074ab71c5cde86307d7, type: 3}
-  - {fileID: 21300000, guid: 0e5734f85fbb1074ab71c5cde86307d7, type: 3}
+  - {fileID: 1902582594, guid: c06966272239977489abd4e2176ce211, type: 3}
+  - {fileID: 1902582594, guid: c06966272239977489abd4e2176ce211, type: 3}
+  - {fileID: 1902582594, guid: c06966272239977489abd4e2176ce211, type: 3}
   icon: {fileID: -41189149, guid: fe65b1b3e5eb9d142b3195729b608b4d, type: 3}
   dni: {fileID: 0}
   reserva: {fileID: 0}
