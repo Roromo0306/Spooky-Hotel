@@ -1,5 +1,5 @@
-﻿using System.Threading.Tasks;
-using Infrastructure.MVC;
+﻿using Infrastructure.MVC;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class MainMenuController : ControllerBase<MainMenuModel>
@@ -13,6 +13,7 @@ public class MainMenuController : ControllerBase<MainMenuModel>
     [SerializeField] private ButtonActionSO quitAction;
     [SerializeField] private ButtonActionSO returnAction; // ✅ NUEVO
 
+    [Header("Audio")]
     public AudioSource audioSource;
     public AudioClip clip;
 
@@ -25,36 +26,42 @@ public class MainMenuController : ControllerBase<MainMenuModel>
             view.Bind(
                 onPlay: async () =>
                 {
-                    audioSource.PlayOneShot(clip);
+                    PlayClickSound();
                     await Task.Delay(400);
                     Model.Select(MainMenuModel.MenuSelection.Play);
                     playAction?.Execute();
                 },
                 onCredits: async () =>
                 {
-                    audioSource.PlayOneShot(clip);
+                    PlayClickSound();
                     await Task.Delay(400);
                     Model.Select(MainMenuModel.MenuSelection.Credits);
                     creditsAction?.Execute();
                 },
                 onQuit: async () =>
                 {
-                    audioSource.PlayOneShot(clip);
+                    PlayClickSound();
                     await Task.Delay(400);
                     Model.Select(MainMenuModel.MenuSelection.Quit);
                     quitAction?.Execute();
                 },
-                onReturn: async () => 
+                onReturn: async () => // ✅ AHORA SE PASA EL 4º ARGUMENTO
                 {
-                    audioSource.PlayOneShot(clip);
+                    PlayClickSound();
                     await Task.Delay(400);
-                    Model.Select(MainMenuModel.MenuSelection.ReturnToMenu);
+                    Model.Select(MainMenuModel.MenuSelection.None);
                     returnAction?.Execute();
                 }
             );
         }
 
         await Task.CompletedTask;
+    }
+
+    private void PlayClickSound()
+    {
+        if (audioSource != null && clip != null)
+            audioSource.PlayOneShot(clip);
     }
 
     protected override void OnModelChange()
